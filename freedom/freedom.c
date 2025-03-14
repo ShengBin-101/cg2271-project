@@ -1,7 +1,7 @@
 #include "MKL25Z4.h"                    // Device header
 
-#define UART2_RX_PIN 2
-#define UART2_TX_PIN 3
+// #define UART2_RX_PIN 2
+// #define UART2_TX_PIN 3
 #define UART2_BAUD_RATE 9600
 #define UART2_CLOCK 48000000
 
@@ -13,6 +13,16 @@
 #define UART_TX_PORTE22 22  // Page 162
 #define UART_RX_PORTE23 23   // Page 162
 #define UART2_INT_PRIO 128
+
+// Global variable to store the forward/backward control level and left/right control level
+// Structure to store movement control levels
+struct movementControlMessage
+{
+    uint8_t forwardLevel;   // Level of forward movement (0-7)
+    uint8_t backwardLevel;  // Level of backward movement (0-7)
+    uint8_t leftLevel;      // Level of left movement (0-7)
+    uint8_t rightLevel;     // Level of right movement (0-7)
+};
 
 // Create a queue 
 #define Q_SIZE 128
@@ -222,12 +232,58 @@ void decode_packet(volatile uint8_t *packet, uint8_t length) {
     // Implement your control logic here
 }
 
+// Function to decode the received byte and map it to motor duty cycles
+void decode_motor_control(uint8_t data) {
+    // Extract the upper 4 bits (forward/backward control)
+    uint8_t forwardBackward = (data >> 4) & 0x0F;
+
+    // Extract the lower 4 bits (left/right control)
+    uint8_t leftRight = data & 0x0F;
+
+    // Create a structure to store the movement control levels
+    struct movementControlMessage controlMessage;
+
+    // Populate the forward/backward fields
+    if (forwardBackward <= 7) {
+        // Values 0000–0111 indicate backward movement
+        controlMessage.forwardLevel = 0; // No forward movement
+        controlMessage.backwardLevel = 7 - forwardBackward; // Map 0000 to 7, 0111 to 0
+    } else if (forwardBackward >= 8 && forwardBackward <= 14) {
+        // Values 1000–1110 indicate forward movement
+        controlMessage.forwardLevel = forwardBackward - 8; // Map 1000 to 1, 1110 to 7
+        controlMessage.backwardLevel = 0; // No backward movement
+    } else {
+        // Value 1111 is unused
+        controlMessage.forwardLevel = 0;
+        controlMessage.backwardLevel = 0;
+    }
+
+    // Populate the left/right fields based on the mapping
+    if (leftRight <= 7) {
+        // Values 0000–0111 indicate left movement
+        controlMessage.leftLevel = 7 - leftRight; // Map 0000 to 7, 0111 to 0
+        controlMessage.rightLevel = 0; // No right movement
+    } else if (leftRight >= 8 && leftRight <= 14) {
+        // Values 1000–1110 indicate right movement
+        controlMessage.rightLevel = leftRight - 8; // Map 1000 to 1, 1110 to 7
+        controlMessage.leftLevel = 0; // No left movement
+    } else {
+        // Value 1111 is unused
+        controlMessage.leftLevel = 0;
+        controlMessage.rightLevel = 0;
+    }
+
+    // call method to set motor duty cycles
+    (controlMessage);
+
+}
+
 int main(void) {
     SystemCoreClockUpdate();
     initUART2(BAUD_RATE);
     LED_Init();
 	
-		set_LED_intensity(4,0,0);
+		// set_LED_intensity(4,0,0);
 
     while (1) {
         if (!Q_Empty(&rx_q)) {
