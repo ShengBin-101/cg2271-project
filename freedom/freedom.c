@@ -1,4 +1,5 @@
 #include "MKL25Z4.h"                    // Device header
+#include <math.h>
 
 // UART pin assignments
 // #define UART2_RX_PIN 2
@@ -350,8 +351,7 @@ void initMotorPWM(void) {
 }
 
 void move_forward(uint8_t forward_level){
-//		int speed = 1400 * (int) forward_level;
-	  int speed = (forward_level == 0) ? 0 : (int) (1400 + (800 + forward_level * 100) * (forward_level - 1));
+		int speed = (forward_level == 0) ? 0 : (int) (1400 + (800 + forward_level * 100) * (forward_level - 1));
 	
     FRONT_RIGHT_BACKWARD_CV = 0;
     FRONT_RIGHT_FORWARD_CV = speed;
@@ -367,8 +367,7 @@ void move_forward(uint8_t forward_level){
 }
 
 void move_backward(uint8_t backward_level){
-//		int speed = 1400 * (int) backward_level;
-	  int speed = (backward_level == 0) ? 0 : (int) (1400 + (800 + backward_level * 100) * (backward_level - 1));
+		int speed = (backward_level == 0) ? 0 : (int) (1400 + (800 + backward_level * 100) * (backward_level - 1));
     
 		FRONT_RIGHT_BACKWARD_CV = speed;
     FRONT_RIGHT_FORWARD_CV = 0;
@@ -383,36 +382,47 @@ void move_backward(uint8_t backward_level){
     REAR_LEFT_FORWARD_CV = 0;
 }
 
-void move_right() {
-    FRONT_RIGHT_BACKWARD_CV = 0;
-    FRONT_RIGHT_FORWARD_CV = 4000;
+void move_right(uint8_t forward_level, uint8_t right_level) {
+		// forward_level > 0, right_level > 0
 	
-    REAR_RIGHT_BACKWARD_CV = 0;
-    REAR_RIGHT_FORWARD_CV = 0;
-	
+    int baseSpeed = (int) (1400 + (800 + forward_level * 100) * (forward_level - 1));
+    float turnFactor = log2(3 + right_level) / log2(10) * baseSpeed * 0.9;
+
+		// Reduce speed for right wheels to turn left
+    FRONT_LEFT_FORWARD_CV = baseSpeed;
+    REAR_LEFT_FORWARD_CV = baseSpeed;
+    FRONT_RIGHT_FORWARD_CV = baseSpeed - turnFactor;
+    REAR_RIGHT_FORWARD_CV = baseSpeed - turnFactor;
+
+    // Ensure no backward motion
     FRONT_LEFT_BACKWARD_CV = 0;
-    FRONT_LEFT_FORWARD_CV = 12000;
-	
     REAR_LEFT_BACKWARD_CV = 0;
-    REAR_LEFT_FORWARD_CV = 12000;
+    FRONT_RIGHT_BACKWARD_CV = 0;
+    REAR_RIGHT_BACKWARD_CV = 0;
 }
 
-void move_left() {
-    FRONT_RIGHT_BACKWARD_CV = 0;
-    FRONT_RIGHT_FORWARD_CV = 47000;
-	
-    REAR_RIGHT_BACKWARD_CV = 0;
-    REAR_RIGHT_FORWARD_CV = 47000;
-	
+void move_left(uint8_t forward_level, uint8_t left_level) {
+		// forward_level > 0, left_level > 0
+
+    int baseSpeed = (int) (1400 + (800 + forward_level * 100) * (forward_level - 1));
+    float turnFactor = log2(3 + left_level) / log2(10) * baseSpeed * 0.9;
+
+    // Reduce speed for left wheels to turn left
+    FRONT_LEFT_FORWARD_CV = baseSpeed - turnFactor;
+    REAR_LEFT_FORWARD_CV = baseSpeed - turnFactor;
+    FRONT_RIGHT_FORWARD_CV = baseSpeed;
+    REAR_RIGHT_FORWARD_CV = baseSpeed;
+
+    // Ensure no backward motion
     FRONT_LEFT_BACKWARD_CV = 0;
-    FRONT_LEFT_FORWARD_CV = 0;
-	
     REAR_LEFT_BACKWARD_CV = 0;
-    REAR_LEFT_FORWARD_CV = 2000;
+    FRONT_RIGHT_BACKWARD_CV = 0;
+    REAR_RIGHT_BACKWARD_CV = 0;
 }
 
 void move_left_on_spot(uint8_t left_level) {
-	  int speed = (left_level == 0) ? 0 : (1700 + 700 * (int) (left_level - 1));
+		int speed = (left_level == 0) ? 0 : (1700 + 700 * (int) (left_level - 1));
+	
     FRONT_RIGHT_BACKWARD_CV = 0;
     FRONT_RIGHT_FORWARD_CV = speed;
 	
@@ -427,7 +437,7 @@ void move_left_on_spot(uint8_t left_level) {
 }
 
 void move_right_on_spot(uint8_t right_level) {
-	  int speed = (right_level == 0) ? 0 : (1700 + 700 * (int) (right_level - 1));
+		int speed = (right_level == 0) ? 0 : (1700 + 700 * (int) (right_level - 1));
 
     FRONT_RIGHT_BACKWARD_CV = speed;
     FRONT_RIGHT_FORWARD_CV = 0;
@@ -471,9 +481,9 @@ void movement_master_control(struct movementControlMessage msg) {
 		}	else if (r > 0 && f == 0 && b == 0 && l == 0) {
 				move_right_on_spot(r);
 		}	else if (l > 0 && f > 0 && b == 0 && r == 0) {
-				move_left();
+				move_left(f, l);
 		}	else if (r > 0 && f > 0 && b == 0 && l == 0) {
-				move_right();
+				move_right(f, r);
 		}	else {
 				stop_movement();
 		}
@@ -529,8 +539,8 @@ int main(void) {
     initUART2(BAUD_RATE);
 		initMotorPWM();
 
-    LED_Init();	
-
+    LED_Init();
+	
     while (1) {
         if (!Q_Empty(&rx_q)) {
             uint8_t data = Q_Dequeue(&rx_q);
