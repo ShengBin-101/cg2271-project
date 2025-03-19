@@ -12,16 +12,16 @@
 #define BLUE_LED_PIN 1   // PTD1
 
 // Motor pin assignments
-#define FRONT_RIGHT_FORWARD 1 //PB1, TPM1C1, front left to turn right
+#define FRONT_RIGHT_FORWARD 1 //PB1, TPM1C1, 
 #define FRONT_RIGHT_BACKWARD 0 //PB0, TPM1C0
 
-#define REAR_RIGHT_FORWARD 3 //PB3, TPM2C1, turn left
+#define REAR_RIGHT_FORWARD 3 //PB3, TPM2C1, 
 #define REAR_RIGHT_BACKWARD 2 //PB2, TPM2C0
 
-#define FRONT_LEFT_FORWARD 2 //PC2, TPM0C1, front right to turn left -- PIN OVERLAP WITH BLUE LED
+#define FRONT_LEFT_FORWARD 31 //PE31, TPM0C4, 
 #define FRONT_LEFT_BACKWARD 3 //PD3, TPM0C3
 
-#define REAR_LEFT_FORWARD 2 //PD2, TPM0C2, turn right
+#define REAR_LEFT_FORWARD 2 //PD2, TPM0C2, 
 #define REAR_LEFT_BACKWARD 0 //PD0, TPM0C0
 
 // TPM channel mappings
@@ -31,8 +31,8 @@
 #define REAR_RIGHT_FORWARD_CV    TPM2_C1V
 #define REAR_RIGHT_BACKWARD_CV   TPM2_C0V
 
-#define FRONT_LEFT_FORWARD_CV  TPM0_C1V
-#define FRONT_LEFT_BACKWARD_CV TPM0_C3V
+#define FRONT_LEFT_FORWARD_CV		TPM0_C4V
+#define FRONT_LEFT_BACKWARD_CV 	TPM0_C3V
 
 #define REAR_LEFT_FORWARD_CV   TPM0_C2V
 #define REAR_LEFT_BACKWARD_CV  TPM0_C0V
@@ -262,6 +262,223 @@ void decode_packet(volatile uint8_t *packet, uint8_t length) {
     // Implement your control logic here
 }
 
+/** MOTOR CONTROL FUNCTIONS **/
+void initMotorPWM(void) {
+    //init 2 pins, 1 for forward, 1 for backward
+    //__disable_irq();
+    SIM_SCGC5 |= SIM_SCGC5_PORTB_MASK;
+    SIM_SCGC5 |= SIM_SCGC5_PORTD_MASK;
+    SIM_SCGC5 |= SIM_SCGC5_PORTE_MASK;
+ 
+    //front left
+    PORTD->PCR[FRONT_LEFT_BACKWARD] &= ~PORT_PCR_MUX_MASK;
+    PORTD->PCR[FRONT_LEFT_BACKWARD] |= PORT_PCR_MUX(4);
+	  PORTE->PCR[FRONT_LEFT_FORWARD] &= ~PORT_PCR_MUX_MASK;
+		PORTE->PCR[FRONT_LEFT_FORWARD] |= PORT_PCR_MUX(3);
+	 
+	  //rear left 
+	  PORTD->PCR[REAR_LEFT_BACKWARD] &= ~PORT_PCR_MUX_MASK;
+		PORTD->PCR[REAR_LEFT_BACKWARD] |= PORT_PCR_MUX(4);
+	  PORTD->PCR[REAR_LEFT_FORWARD] &= ~PORT_PCR_MUX_MASK;
+		PORTD->PCR[REAR_LEFT_FORWARD] |= PORT_PCR_MUX(4);
+	 
+	  //front right
+	  PORTB->PCR[FRONT_RIGHT_BACKWARD] &= ~PORT_PCR_MUX_MASK;
+		PORTB->PCR[FRONT_RIGHT_BACKWARD] |= PORT_PCR_MUX(3);
+	  PORTB->PCR[FRONT_RIGHT_FORWARD] &= ~PORT_PCR_MUX_MASK;
+		PORTB->PCR[FRONT_RIGHT_FORWARD] |= PORT_PCR_MUX(3);
+	 
+	  //rear right 
+	  PORTB->PCR[REAR_RIGHT_BACKWARD] &= ~PORT_PCR_MUX_MASK;
+		PORTB->PCR[REAR_RIGHT_BACKWARD] |= PORT_PCR_MUX(3);
+	  PORTB->PCR[REAR_RIGHT_FORWARD] &= ~PORT_PCR_MUX_MASK;
+		PORTB->PCR[REAR_RIGHT_FORWARD] |= PORT_PCR_MUX(3);
+	 
+	  SIM_SCGC6 |= SIM_SCGC6_TPM0_MASK;
+	  SIM_SCGC6 |= SIM_SCGC6_TPM1_MASK;
+	  SIM_SCGC6 |= SIM_SCGC6_TPM2_MASK;
+	 
+	  SIM->SOPT2 &= ~SIM_SOPT2_TPMSRC_MASK;
+	  SIM->SOPT2 |= SIM_SOPT2_TPMSRC(1);
+	 
+	  //TPM0 configuration
+	  TPM0->MOD = 18750000;
+	 
+	  TPM0->SC &= ~((TPM_SC_CMOD_MASK) | (TPM_SC_PS_MASK));
+	  TPM0->SC |= (TPM_SC_CMOD(1) | TPM_SC_PS(7));
+	  TPM0->SC &= ~(TPM_SC_CPWMS_MASK);
+	 
+	  TPM0_C0SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
+	  TPM0_C0SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
+
+	  TPM0_C4SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
+	  TPM0_C4SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
+	 
+	  TPM0_C2SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
+	  TPM0_C2SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
+
+	  TPM0_C3SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
+ 	  TPM0_C3SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
+	 
+	  //TPM1 configuration
+	  TPM1->MOD = 18750000;
+	 
+	  TPM1->SC &= ~((TPM_SC_CMOD_MASK) | (TPM_SC_PS_MASK));
+	  TPM1->SC |= (TPM_SC_CMOD(1) | TPM_SC_PS(7));
+	  TPM1->SC &= ~(TPM_SC_CPWMS_MASK);
+	 
+	  TPM1_C0SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
+	  TPM1_C0SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
+
+	  TPM1_C1SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
+	  TPM1_C1SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
+	 
+	  //TPM2 configuration
+	  TPM2->MOD = 18750000;
+	 
+	  TPM2->SC &= ~((TPM_SC_CMOD_MASK) | (TPM_SC_PS_MASK));
+	  TPM2->SC |= (TPM_SC_CMOD(1) | TPM_SC_PS(7));
+	  TPM2->SC &= ~(TPM_SC_CPWMS_MASK);
+	 
+	  TPM2_C0SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
+	  TPM2_C0SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
+
+	  TPM2_C1SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
+	  TPM2_C1SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
+	 
+	 //__enable_irq();
+}
+
+void move_forward(uint8_t forward_level){
+//		int speed = 1400 * (int) forward_level;
+	  int speed = (forward_level == 0) ? 0 : (int) (1400 + (800 + forward_level * 100) * (forward_level - 1));
+	
+    FRONT_RIGHT_BACKWARD_CV = 0;
+    FRONT_RIGHT_FORWARD_CV = speed;
+	
+    REAR_RIGHT_BACKWARD_CV = 0;
+    REAR_RIGHT_FORWARD_CV = speed;
+	
+    FRONT_LEFT_BACKWARD_CV = 0;
+    FRONT_LEFT_FORWARD_CV = speed;
+	
+    REAR_LEFT_BACKWARD_CV = 0;
+    REAR_LEFT_FORWARD_CV = speed;
+}
+
+void move_backward(uint8_t backward_level){
+//		int speed = 1400 * (int) backward_level;
+	  int speed = (backward_level == 0) ? 0 : (int) (1400 + (800 + backward_level * 100) * (backward_level - 1));
+    
+		FRONT_RIGHT_BACKWARD_CV = speed;
+    FRONT_RIGHT_FORWARD_CV = 0;
+	
+    REAR_RIGHT_BACKWARD_CV = speed;
+    REAR_RIGHT_FORWARD_CV = 0;
+	
+    FRONT_LEFT_BACKWARD_CV = speed;
+    FRONT_LEFT_FORWARD_CV = 0;
+	
+    REAR_LEFT_BACKWARD_CV = speed;
+    REAR_LEFT_FORWARD_CV = 0;
+}
+
+void move_right() {
+    FRONT_RIGHT_BACKWARD_CV = 0;
+    FRONT_RIGHT_FORWARD_CV = 4000;
+	
+    REAR_RIGHT_BACKWARD_CV = 0;
+    REAR_RIGHT_FORWARD_CV = 0;
+	
+    FRONT_LEFT_BACKWARD_CV = 0;
+    FRONT_LEFT_FORWARD_CV = 12000;
+	
+    REAR_LEFT_BACKWARD_CV = 0;
+    REAR_LEFT_FORWARD_CV = 12000;
+}
+
+void move_left() {
+    FRONT_RIGHT_BACKWARD_CV = 0;
+    FRONT_RIGHT_FORWARD_CV = 47000;
+	
+    REAR_RIGHT_BACKWARD_CV = 0;
+    REAR_RIGHT_FORWARD_CV = 47000;
+	
+    FRONT_LEFT_BACKWARD_CV = 0;
+    FRONT_LEFT_FORWARD_CV = 0;
+	
+    REAR_LEFT_BACKWARD_CV = 0;
+    REAR_LEFT_FORWARD_CV = 2000;
+}
+
+void move_left_on_spot(uint8_t left_level) {
+	  int speed = (left_level == 0) ? 0 : (1700 + 700 * (int) (left_level - 1));
+    FRONT_RIGHT_BACKWARD_CV = 0;
+    FRONT_RIGHT_FORWARD_CV = speed;
+	
+    REAR_RIGHT_BACKWARD_CV = 0;
+    REAR_RIGHT_FORWARD_CV = speed;
+	
+    FRONT_LEFT_BACKWARD_CV = speed;
+    FRONT_LEFT_FORWARD_CV = 0;
+	
+    REAR_LEFT_BACKWARD_CV = speed;
+    REAR_LEFT_FORWARD_CV = 0;
+}
+
+void move_right_on_spot(uint8_t right_level) {
+	  int speed = (right_level == 0) ? 0 : (1700 + 700 * (int) (right_level - 1));
+
+    FRONT_RIGHT_BACKWARD_CV = speed;
+    FRONT_RIGHT_FORWARD_CV = 0;
+	
+    REAR_RIGHT_BACKWARD_CV = speed;
+    REAR_RIGHT_FORWARD_CV = 0;
+	
+    FRONT_LEFT_BACKWARD_CV = 0;
+    FRONT_LEFT_FORWARD_CV = speed;
+	
+    REAR_LEFT_BACKWARD_CV = 0;
+    REAR_LEFT_FORWARD_CV = speed;
+}
+
+void stop_movement() {
+    FRONT_RIGHT_BACKWARD_CV = 0;
+    FRONT_RIGHT_FORWARD_CV = 0;
+	
+    REAR_RIGHT_BACKWARD_CV = 0;
+    REAR_RIGHT_FORWARD_CV = 0;
+	
+    FRONT_LEFT_BACKWARD_CV = 0;
+    FRONT_LEFT_FORWARD_CV = 0;
+	
+    REAR_LEFT_BACKWARD_CV = 0;
+    REAR_LEFT_FORWARD_CV = 0;
+}
+
+void movement_master_control(struct movementControlMessage msg) {
+		uint8_t f = msg.forwardLevel;
+		uint8_t b = msg.backwardLevel;
+		uint8_t l = msg.leftLevel;
+		uint8_t r = msg.rightLevel;
+	
+		if (f > 0 && b == 0 && l == 0 && r == 0) {
+				move_forward(f);
+		} else if (b > 0 && f == 0 && l == 0 && r == 0) {
+				move_backward(b);
+		} else if (l > 0 && f == 0 && b == 0 && r == 0){
+				move_left_on_spot(l);
+		}	else if (r > 0 && f == 0 && b == 0 && l == 0) {
+				move_right_on_spot(r);
+		}	else if (l > 0 && f > 0 && b == 0 && r == 0) {
+				move_left();
+		}	else if (r > 0 && f > 0 && b == 0 && l == 0) {
+				move_right();
+		}	else {
+				stop_movement();
+		}
+}
+
 // Function to decode the received byte and map it to motor duty cycles
 void decode_motor_control(uint8_t data) {
     // Extract the upper 4 bits (forward/backward control)
@@ -304,207 +521,20 @@ void decode_motor_control(uint8_t data) {
     }
 
     // call method to set motor duty cycles
-    //(controlMessage);
-
+		movement_master_control(controlMessage);
 }
-
-/** MOTOR CONTROL FUNCTIONS **/
-void initMotorPWM(void) {
-    //init 2 pins, 1 for forward, 1 for backward
-    //__disable_irq();
-    SIM_SCGC5 |= SIM_SCGC5_PORTB_MASK;
-    SIM_SCGC5 |= SIM_SCGC5_PORTD_MASK;
- 
-    //front left
-    PORTD->PCR[FRONT_LEFT_BACKWARD] &= ~PORT_PCR_MUX_MASK;
-    PORTD->PCR[FRONT_LEFT_BACKWARD] |= PORT_PCR_MUX(3);
-	  PORTC->PCR[FRONT_LEFT_FORWARD] &= ~PORT_PCR_MUX_MASK;
-		PORTC->PCR[FRONT_LEFT_FORWARD] |= PORT_PCR_MUX(3);
-	 
-	  //rear left 
-	  PORTD->PCR[REAR_LEFT_BACKWARD] &= ~PORT_PCR_MUX_MASK;
-		PORTD->PCR[REAR_LEFT_BACKWARD] |= PORT_PCR_MUX(3);
-	  PORTD->PCR[REAR_LEFT_FORWARD] &= ~PORT_PCR_MUX_MASK;
-		PORTD->PCR[REAR_LEFT_FORWARD] |= PORT_PCR_MUX(3);
-	 
-	  //front right
-	  PORTB->PCR[FRONT_RIGHT_BACKWARD] &= ~PORT_PCR_MUX_MASK;
-		PORTB->PCR[FRONT_RIGHT_BACKWARD] |= PORT_PCR_MUX(4);
-	  PORTB->PCR[FRONT_RIGHT_FORWARD] &= ~PORT_PCR_MUX_MASK;
-		PORTB->PCR[FRONT_RIGHT_FORWARD] |= PORT_PCR_MUX(4);
-	 
-	  //rear right 
-	  PORTB->PCR[REAR_RIGHT_BACKWARD] &= ~PORT_PCR_MUX_MASK;
-		PORTB->PCR[REAR_RIGHT_BACKWARD] |= PORT_PCR_MUX(4);
-	  PORTB->PCR[REAR_RIGHT_FORWARD] &= ~PORT_PCR_MUX_MASK;
-		PORTB->PCR[REAR_RIGHT_FORWARD] |= PORT_PCR_MUX(4);
-	 
-	  SIM_SCGC6 |= SIM_SCGC6_TPM0_MASK;
-	  SIM_SCGC6 |= SIM_SCGC6_TPM1_MASK;
-	  SIM_SCGC6 |= SIM_SCGC6_TPM2_MASK;
-	 
-	  SIM->SOPT2 &= ~SIM_SOPT2_TPMSRC_MASK;
-	  SIM->SOPT2 |= SIM_SOPT2_TPMSRC(1);
-	 
-	  //TPM0 configuration
-	  TPM0->MOD = 18750000;
-	 
-	  TPM0->SC &= ~((TPM_SC_CMOD_MASK) | (TPM_SC_PS_MASK));
-	  TPM0->SC |= (TPM_SC_CMOD(1) | TPM_SC_PS(7));
-	  TPM0->SC &= ~(TPM_SC_CPWMS_MASK);
-	 
-	  TPM0_C0SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
-	  TPM0_C0SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
-
-	  TPM0_C1SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
-	  TPM0_C1SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
-	 
-	  TPM0_C2SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
-	  TPM0_C2SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
-
-	  TPM0_C3SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
- 	  TPM0_C3SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
-	 
-	  //TPM1 configuration
-	  TPM1->MOD = 18750000;
-	 
-	  TPM1->SC &= ~((TPM_SC_CMOD_MASK) | (TPM_SC_PS_MASK));
-	  TPM1->SC |= (TPM_SC_CMOD(1) | TPM_SC_PS(7));
-	  TPM1->SC &= ~(TPM_SC_CPWMS_MASK);
-	 
-	  TPM1_C0SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
-	  TPM1_C0SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
-
-	  TPM1_C1SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
-	  TPM1_C1SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
-	 
-	  //TPM2 configuration
-	  TPM2->MOD = 18750000;
-	 
-	  TPM2->SC &= ~((TPM_SC_CMOD_MASK) | (TPM_SC_PS_MASK));
-	  TPM2->SC |= (TPM_SC_CMOD(1) | TPM_SC_PS(7));
-	  TPM2->SC &= ~(TPM_SC_CPWMS_MASK);
-	 
-	  TPM2_C0SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
-	  TPM2_C0SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
-
-	  TPM2_C1SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
-	  TPM2_C1SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
-	 
-	 //__enable_irq();
-}
-
-void move_forward(){
-    FRONT_RIGHT_BACKWARD_CV = 0;
-    FRONT_RIGHT_FORWARD_CV = 2000;
-	
-    REAR_RIGHT_BACKWARD_CV = 0;
-    REAR_RIGHT_FORWARD_CV = 2000;
-	
-    FRONT_LEFT_BACKWARD_CV = 0;
-    FRONT_LEFT_FORWARD_CV = 1930;
-	
-    REAR_LEFT_BACKWARD_CV = 0;
-    REAR_LEFT_FORWARD_CV = 1930;
-}
-
-void move_backward(){
-    FRONT_RIGHT_BACKWARD_CV = 2000;
-    FRONT_RIGHT_FORWARD_CV = 0;
-	
-    REAR_RIGHT_BACKWARD_CV = 2000;
-    REAR_RIGHT_FORWARD_CV = 0;
-	
-    FRONT_LEFT_BACKWARD_CV = 1930;
-    FRONT_LEFT_FORWARD_CV = 0;
-	
-    REAR_LEFT_BACKWARD_CV = 1930;
-    REAR_LEFT_FORWARD_CV = 0;
-}
-
-void move_right() {
-    FRONT_RIGHT_BACKWARD_CV = 0;
-    FRONT_RIGHT_FORWARD_CV = 0;
-	
-    REAR_RIGHT_BACKWARD_CV = 0;
-    REAR_RIGHT_FORWARD_CV = 2200;
-	
-    FRONT_LEFT_BACKWARD_CV = 0;
-    FRONT_LEFT_FORWARD_CV = 45000;
-	
-    REAR_LEFT_BACKWARD_CV = 0;
-    REAR_LEFT_FORWARD_CV = 45000;
-}
-
-void move_left() {
-    FRONT_RIGHT_BACKWARD_CV = 0;
-    FRONT_RIGHT_FORWARD_CV = 47000;
-	
-    REAR_RIGHT_BACKWARD_CV = 0;
-    REAR_RIGHT_FORWARD_CV = 47000;
-	
-    FRONT_LEFT_BACKWARD_CV = 0;
-    FRONT_LEFT_FORWARD_CV = 0;
-	
-    REAR_LEFT_BACKWARD_CV = 0;
-    REAR_LEFT_FORWARD_CV = 2000;
-}
-
-void move_left_on_spot() {
-    FRONT_RIGHT_BACKWARD_CV = 0;
-    FRONT_RIGHT_FORWARD_CV = 4500;
-	
-    REAR_RIGHT_BACKWARD_CV = 0;
-    REAR_RIGHT_FORWARD_CV = 4500;
-	
-    FRONT_LEFT_BACKWARD_CV = 4500;
-    FRONT_LEFT_FORWARD_CV = 0;
-	
-    REAR_LEFT_BACKWARD_CV = 4500;
-    REAR_LEFT_FORWARD_CV = 0;
-}
-
-void move_right_on_spot() {
-    FRONT_RIGHT_BACKWARD_CV = 4500;
-    FRONT_RIGHT_FORWARD_CV = 0;
-	
-    REAR_RIGHT_BACKWARD_CV = 4500;
-    REAR_RIGHT_FORWARD_CV = 0;
-	
-    FRONT_LEFT_BACKWARD_CV = 0;
-    FRONT_LEFT_FORWARD_CV = 4500;
-	
-    REAR_LEFT_BACKWARD_CV = 0;
-    REAR_LEFT_FORWARD_CV = 4500;
-}
-
-void stop_movement() {
-    FRONT_RIGHT_BACKWARD_CV = 0;
-    FRONT_RIGHT_FORWARD_CV = 0;
-	
-    REAR_RIGHT_BACKWARD_CV = 0;
-    REAR_RIGHT_FORWARD_CV = 0;
-	
-    FRONT_LEFT_BACKWARD_CV = 0;
-    FRONT_LEFT_FORWARD_CV = 0;
-	
-    REAR_LEFT_BACKWARD_CV = 0;
-    REAR_LEFT_FORWARD_CV = 0;
-}
-
 
 int main(void) {
     SystemCoreClockUpdate();
     initUART2(BAUD_RATE);
 		initMotorPWM();
 
-    LED_Init();
-	
-/*	
+    LED_Init();	
+
     while (1) {
         if (!Q_Empty(&rx_q)) {
             uint8_t data = Q_Dequeue(&rx_q);
             decode_packet(&data, 1);
         }
-    }*/
+    }
 }

@@ -12,6 +12,7 @@ Section Cross References
     freedom.o(i.UART2_IRQHandler) refers to freedom.o(i.Q_Full) for Q_Full
     freedom.o(i.UART2_IRQHandler) refers to freedom.o(i.Q_Enqueue) for Q_Enqueue
     freedom.o(i.UART2_IRQHandler) refers to freedom.o(.bss) for tx_q
+    freedom.o(i.decode_motor_control) refers to freedom.o(i.movement_master_control) for movement_master_control
     freedom.o(i.decode_packet) refers to freedom.o(i.set_LED_intensity) for set_LED_intensity
     freedom.o(i.initUART2) refers to uidiv.o(.text) for __aeabi_uidivmod
     freedom.o(i.initUART2) refers to freedom.o(i.__NVIC_SetPriority) for __NVIC_SetPriority
@@ -22,10 +23,17 @@ Section Cross References
     freedom.o(i.main) refers to freedom.o(i.initUART2) for initUART2
     freedom.o(i.main) refers to freedom.o(i.initMotorPWM) for initMotorPWM
     freedom.o(i.main) refers to freedom.o(i.LED_Init) for LED_Init
-    freedom.o(i.main) refers to freedom.o(i.move_right) for move_right
-    freedom.o(i.main) refers to freedom.o(i.delay) for delay
-    freedom.o(i.main) refers to freedom.o(i.stop_movement) for stop_movement
-    freedom.o(i.main) refers to freedom.o(i.move_left) for move_left
+    freedom.o(i.main) refers to freedom.o(i.Q_Empty) for Q_Empty
+    freedom.o(i.main) refers to freedom.o(i.Q_Dequeue) for Q_Dequeue
+    freedom.o(i.main) refers to freedom.o(i.decode_packet) for decode_packet
+    freedom.o(i.main) refers to freedom.o(.bss) for rx_q
+    freedom.o(i.movement_master_control) refers to freedom.o(i.move_forward) for move_forward
+    freedom.o(i.movement_master_control) refers to freedom.o(i.move_backward) for move_backward
+    freedom.o(i.movement_master_control) refers to freedom.o(i.move_left_on_spot) for move_left_on_spot
+    freedom.o(i.movement_master_control) refers to freedom.o(i.move_right_on_spot) for move_right_on_spot
+    freedom.o(i.movement_master_control) refers to freedom.o(i.move_left) for move_left
+    freedom.o(i.movement_master_control) refers to freedom.o(i.move_right) for move_right
+    freedom.o(i.movement_master_control) refers to freedom.o(i.stop_movement) for stop_movement
     startup_mkl25z4.o(RESET) refers to startup_mkl25z4.o(STACK) for __initial_sp
     startup_mkl25z4.o(RESET) refers to startup_mkl25z4.o(.text) for Reset_Handler
     startup_mkl25z4.o(RESET) refers to freedom.o(i.UART2_IRQHandler) for UART2_IRQHandler
@@ -59,19 +67,22 @@ Removing Unused input sections from the image.
     Removing freedom.o(.revsh_text), (4 bytes).
     Removing freedom.o(i.UART2_Receive_Poll), (24 bytes).
     Removing freedom.o(i.UART2_Transmit_Poll), (24 bytes).
-    Removing freedom.o(i.decode_motor_control), (120 bytes).
-    Removing freedom.o(i.decode_packet), (74 bytes).
-    Removing freedom.o(i.move_backward), (60 bytes).
-    Removing freedom.o(i.move_forward), (60 bytes).
-    Removing freedom.o(i.move_left_on_spot), (56 bytes).
-    Removing freedom.o(i.move_right_on_spot), (56 bytes).
-    Removing freedom.o(i.set_LED_intensity), (76 bytes).
+    Removing freedom.o(i.decode_motor_control), (126 bytes).
+    Removing freedom.o(i.delay), (20 bytes).
+    Removing freedom.o(i.move_backward), (68 bytes).
+    Removing freedom.o(i.move_forward), (68 bytes).
+    Removing freedom.o(i.move_left), (56 bytes).
+    Removing freedom.o(i.move_left_on_spot), (68 bytes).
+    Removing freedom.o(i.move_right), (56 bytes).
+    Removing freedom.o(i.move_right_on_spot), (68 bytes).
+    Removing freedom.o(i.movement_master_control), (158 bytes).
+    Removing freedom.o(i.stop_movement), (40 bytes).
     Removing freedom.o(.data), (1 bytes).
     Removing startup_mkl25z4.o(HEAP), (0 bytes).
     Removing system_mkl25z4.o(.rev16_text), (4 bytes).
     Removing system_mkl25z4.o(.revsh_text), (4 bytes).
 
-15 unused section(s) (total 567 bytes) removed from the image.
+18 unused section(s) (total 793 bytes) removed from the image.
 
 ==============================================================================
 
@@ -85,8 +96,8 @@ Image Symbol Table
     ../clib/microlib/division.c              0x00000000   Number         0  uidiv.o ABSOLUTE
     ../clib/microlib/init/entry.s            0x00000000   Number         0  entry.o ABSOLUTE
     ../clib/microlib/init/entry.s            0x00000000   Number         0  entry11b.o ABSOLUTE
-    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry10b.o ABSOLUTE
     ../clib/microlib/init/entry.s            0x00000000   Number         0  entry11a.o ABSOLUTE
+    ../clib/microlib/init/entry.s            0x00000000   Number         0  entry10b.o ABSOLUTE
     ../clib/microlib/init/entry.s            0x00000000   Number         0  entry10a.o ABSOLUTE
     ../clib/microlib/init/entry.s            0x00000000   Number         0  entry9b.o ABSOLUTE
     ../clib/microlib/init/entry.s            0x00000000   Number         0  entry9a.o ABSOLUTE
@@ -135,14 +146,11 @@ Image Symbol Table
     __NVIC_SetPriority                       0x000005ed   Thumb Code   110  freedom.o(i.__NVIC_SetPriority)
     i.__scatterload_copy                     0x00000664   Section       14  handlers.o(i.__scatterload_copy)
     i.__scatterload_zeroinit                 0x00000672   Section       14  handlers.o(i.__scatterload_zeroinit)
-    i.delay                                  0x00000680   Section        0  freedom.o(i.delay)
-    delay                                    0x00000681   Thumb Code    20  freedom.o(i.delay)
-    i.initMotorPWM                           0x00000694   Section        0  freedom.o(i.initMotorPWM)
-    i.initUART2                              0x00000924   Section        0  freedom.o(i.initUART2)
-    i.main                                   0x000009ec   Section        0  freedom.o(i.main)
-    i.move_left                              0x00000a34   Section        0  freedom.o(i.move_left)
-    i.move_right                             0x00000a6c   Section        0  freedom.o(i.move_right)
-    i.stop_movement                          0x00000aa4   Section        0  freedom.o(i.stop_movement)
+    i.decode_packet                          0x00000680   Section        0  freedom.o(i.decode_packet)
+    i.initMotorPWM                           0x000006cc   Section        0  freedom.o(i.initMotorPWM)
+    i.initUART2                              0x00000970   Section        0  freedom.o(i.initUART2)
+    i.main                                   0x00000a38   Section        0  freedom.o(i.main)
+    i.set_LED_intensity                      0x00000a74   Section        0  freedom.o(i.set_LED_intensity)
     .data                                    0x1ffff000   Section        4  system_mkl25z4.o(.data)
     .bss                                     0x1ffff004   Section      280  freedom.o(.bss)
     STACK                                    0x1ffff120   Section      256  startup_mkl25z4.o(STACK)
@@ -225,14 +233,13 @@ Image Symbol Table
     __ARM_common_switch8                     0x000005b9   Thumb Code    28  system_mkl25z4.o(i.__ARM_common_switch8)
     __scatterload_copy                       0x00000665   Thumb Code    14  handlers.o(i.__scatterload_copy)
     __scatterload_zeroinit                   0x00000673   Thumb Code    14  handlers.o(i.__scatterload_zeroinit)
-    initMotorPWM                             0x00000695   Thumb Code   628  freedom.o(i.initMotorPWM)
-    initUART2                                0x00000925   Thumb Code   174  freedom.o(i.initUART2)
-    main                                     0x000009ed   Thumb Code    66  freedom.o(i.main)
-    move_left                                0x00000a35   Thumb Code    38  freedom.o(i.move_left)
-    move_right                               0x00000a6d   Thumb Code    36  freedom.o(i.move_right)
-    stop_movement                            0x00000aa5   Thumb Code    26  freedom.o(i.stop_movement)
-    Region$$Table$$Base                      0x00000acc   Number         0  anon$$obj.o(Region$$Table)
-    Region$$Table$$Limit                     0x00000aec   Number         0  anon$$obj.o(Region$$Table)
+    decode_packet                            0x00000681   Thumb Code    74  freedom.o(i.decode_packet)
+    initMotorPWM                             0x000006cd   Thumb Code   644  freedom.o(i.initMotorPWM)
+    initUART2                                0x00000971   Thumb Code   174  freedom.o(i.initUART2)
+    main                                     0x00000a39   Thumb Code    54  freedom.o(i.main)
+    set_LED_intensity                        0x00000a75   Thumb Code    70  freedom.o(i.set_LED_intensity)
+    Region$$Table$$Base                      0x00000ac0   Number         0  anon$$obj.o(Region$$Table)
+    Region$$Table$$Limit                     0x00000ae0   Number         0  anon$$obj.o(Region$$Table)
     SystemCoreClock                          0x1ffff000   Data           4  system_mkl25z4.o(.data)
     tx_q                                     0x1ffff004   Data         140  freedom.o(.bss)
     rx_q                                     0x1ffff090   Data         140  freedom.o(.bss)
@@ -246,66 +253,65 @@ Memory Map of the image
 
   Image Entry point : 0x000000d5
 
-  Load Region LR_1 (Base: 0x00000000, Size: 0x00000af0, Max: 0xffffffff, ABSOLUTE)
+  Load Region LR_1 (Base: 0x00000000, Size: 0x00000ae4, Max: 0xffffffff, ABSOLUTE)
 
-    Execution Region ER_RO (Exec base: 0x00000000, Load base: 0x00000000, Size: 0x00000aec, Max: 0xffffffff, ABSOLUTE)
+    Execution Region ER_RO (Exec base: 0x00000000, Load base: 0x00000000, Size: 0x00000ae0, Max: 0xffffffff, ABSOLUTE)
 
     Exec Addr    Load Addr    Size         Type   Attr      Idx    E Section Name        Object
 
-    0x00000000   0x00000000   0x000000c0   Data   RO          193    RESET               startup_mkl25z4.o
-    0x000000c0   0x000000c0   0x00000000   Code   RO          241  * .ARM.Collect$$$$00000000  mc_p.l(entry.o)
-    0x000000c0   0x000000c0   0x00000004   Code   RO          246    .ARM.Collect$$$$00000001  mc_p.l(entry2.o)
-    0x000000c4   0x000000c4   0x00000004   Code   RO          249    .ARM.Collect$$$$00000004  mc_p.l(entry5.o)
-    0x000000c8   0x000000c8   0x00000000   Code   RO          251    .ARM.Collect$$$$00000008  mc_p.l(entry7b.o)
-    0x000000c8   0x000000c8   0x00000000   Code   RO          253    .ARM.Collect$$$$0000000A  mc_p.l(entry8b.o)
-    0x000000c8   0x000000c8   0x00000008   Code   RO          254    .ARM.Collect$$$$0000000B  mc_p.l(entry9a.o)
-    0x000000d0   0x000000d0   0x00000000   Code   RO          256    .ARM.Collect$$$$0000000D  mc_p.l(entry10a.o)
-    0x000000d0   0x000000d0   0x00000000   Code   RO          258    .ARM.Collect$$$$0000000F  mc_p.l(entry11a.o)
-    0x000000d0   0x000000d0   0x00000004   Code   RO          247    .ARM.Collect$$$$00002712  mc_p.l(entry2.o)
-    0x000000d4   0x000000d4   0x00000028   Code   RO          195  * .text               startup_mkl25z4.o
-    0x000000fc   0x000000fc   0x0000002c   Code   RO          244    .text               mc_p.l(uidiv.o)
-    0x00000128   0x00000128   0x00000024   Code   RO          260    .text               mc_p.l(init.o)
+    0x00000000   0x00000000   0x000000c0   Data   RO          199    RESET               startup_mkl25z4.o
+    0x000000c0   0x000000c0   0x00000000   Code   RO          247  * .ARM.Collect$$$$00000000  mc_p.l(entry.o)
+    0x000000c0   0x000000c0   0x00000004   Code   RO          252    .ARM.Collect$$$$00000001  mc_p.l(entry2.o)
+    0x000000c4   0x000000c4   0x00000004   Code   RO          255    .ARM.Collect$$$$00000004  mc_p.l(entry5.o)
+    0x000000c8   0x000000c8   0x00000000   Code   RO          257    .ARM.Collect$$$$00000008  mc_p.l(entry7b.o)
+    0x000000c8   0x000000c8   0x00000000   Code   RO          259    .ARM.Collect$$$$0000000A  mc_p.l(entry8b.o)
+    0x000000c8   0x000000c8   0x00000008   Code   RO          260    .ARM.Collect$$$$0000000B  mc_p.l(entry9a.o)
+    0x000000d0   0x000000d0   0x00000000   Code   RO          262    .ARM.Collect$$$$0000000D  mc_p.l(entry10a.o)
+    0x000000d0   0x000000d0   0x00000000   Code   RO          264    .ARM.Collect$$$$0000000F  mc_p.l(entry11a.o)
+    0x000000d0   0x000000d0   0x00000004   Code   RO          253    .ARM.Collect$$$$00002712  mc_p.l(entry2.o)
+    0x000000d4   0x000000d4   0x00000028   Code   RO          201  * .text               startup_mkl25z4.o
+    0x000000fc   0x000000fc   0x0000002c   Code   RO          250    .text               mc_p.l(uidiv.o)
+    0x00000128   0x00000128   0x00000024   Code   RO          266    .text               mc_p.l(init.o)
     0x0000014c   0x0000014c   0x0000005c   Code   RO            3    i.LED_Init          freedom.o
     0x000001a8   0x000001a8   0x00000042   Code   RO            4    i.Q_Dequeue         freedom.o
     0x000001ea   0x000001ea   0x00000012   Code   RO            5    i.Q_Empty           freedom.o
     0x000001fc   0x000001fc   0x0000003c   Code   RO            6    i.Q_Enqueue         freedom.o
     0x00000238   0x00000238   0x00000012   Code   RO            7    i.Q_Full            freedom.o
     0x0000024a   0x0000024a   0x0000001e   Code   RO            8    i.Q_Init            freedom.o
-    0x00000268   0x00000268   0x00000190   Code   RO          203    i.SystemCoreClockUpdate  system_mkl25z4.o
-    0x000003f8   0x000003f8   0x00000002   Code   RO          265    i.__scatterload_null  mc_p.l(handlers.o)
+    0x00000268   0x00000268   0x00000190   Code   RO          209    i.SystemCoreClockUpdate  system_mkl25z4.o
+    0x000003f8   0x000003f8   0x00000002   Code   RO          271    i.__scatterload_null  mc_p.l(handlers.o)
     0x000003fa   0x000003fa   0x00000006   PAD
-    0x00000400   0x00000400   0x00000010   Code   RO          194    .ARM.__at_0x400     startup_mkl25z4.o
-    0x00000410   0x00000410   0x00000138   Code   RO          204    i.SystemInit        system_mkl25z4.o
+    0x00000400   0x00000400   0x00000010   Code   RO          200    .ARM.__at_0x400     startup_mkl25z4.o
+    0x00000410   0x00000410   0x00000138   Code   RO          210    i.SystemInit        system_mkl25z4.o
     0x00000548   0x00000548   0x00000070   Code   RO            9    i.UART2_IRQHandler  freedom.o
-    0x000005b8   0x000005b8   0x0000001c   Code   RO          227    i.__ARM_common_switch8  system_mkl25z4.o
+    0x000005b8   0x000005b8   0x0000001c   Code   RO          233    i.__ARM_common_switch8  system_mkl25z4.o
     0x000005d4   0x000005d4   0x00000018   Code   RO           12    i.__NVIC_ClearPendingIRQ  freedom.o
     0x000005ec   0x000005ec   0x00000078   Code   RO           13    i.__NVIC_SetPriority  freedom.o
-    0x00000664   0x00000664   0x0000000e   Code   RO          264    i.__scatterload_copy  mc_p.l(handlers.o)
-    0x00000672   0x00000672   0x0000000e   Code   RO          266    i.__scatterload_zeroinit  mc_p.l(handlers.o)
-    0x00000680   0x00000680   0x00000014   Code   RO           16    i.delay             freedom.o
-    0x00000694   0x00000694   0x00000290   Code   RO           17    i.initMotorPWM      freedom.o
-    0x00000924   0x00000924   0x000000c8   Code   RO           18    i.initUART2         freedom.o
-    0x000009ec   0x000009ec   0x00000048   Code   RO           19    i.main              freedom.o
-    0x00000a34   0x00000a34   0x00000038   Code   RO           22    i.move_left         freedom.o
-    0x00000a6c   0x00000a6c   0x00000038   Code   RO           24    i.move_right        freedom.o
-    0x00000aa4   0x00000aa4   0x00000028   Code   RO           27    i.stop_movement     freedom.o
-    0x00000acc   0x00000acc   0x00000020   Data   RO          262    Region$$Table       anon$$obj.o
+    0x00000664   0x00000664   0x0000000e   Code   RO          270    i.__scatterload_copy  mc_p.l(handlers.o)
+    0x00000672   0x00000672   0x0000000e   Code   RO          272    i.__scatterload_zeroinit  mc_p.l(handlers.o)
+    0x00000680   0x00000680   0x0000004a   Code   RO           15    i.decode_packet     freedom.o
+    0x000006ca   0x000006ca   0x00000002   PAD
+    0x000006cc   0x000006cc   0x000002a4   Code   RO           17    i.initMotorPWM      freedom.o
+    0x00000970   0x00000970   0x000000c8   Code   RO           18    i.initUART2         freedom.o
+    0x00000a38   0x00000a38   0x0000003c   Code   RO           19    i.main              freedom.o
+    0x00000a74   0x00000a74   0x0000004c   Code   RO           27    i.set_LED_intensity  freedom.o
+    0x00000ac0   0x00000ac0   0x00000020   Data   RO          268    Region$$Table       anon$$obj.o
 
 
-    Execution Region ER_RW (Exec base: 0x1ffff000, Load base: 0x00000aec, Size: 0x00000004, Max: 0xffffffff, ABSOLUTE)
-
-    Exec Addr    Load Addr    Size         Type   Attr      Idx    E Section Name        Object
-
-    0x1ffff000   0x00000aec   0x00000004   Data   RW          205    .data               system_mkl25z4.o
-
-
-    Execution Region ER_ZI (Exec base: 0x1ffff004, Load base: 0x00000af0, Size: 0x0000021c, Max: 0xffffffff, ABSOLUTE)
+    Execution Region ER_RW (Exec base: 0x1ffff000, Load base: 0x00000ae0, Size: 0x00000004, Max: 0xffffffff, ABSOLUTE)
 
     Exec Addr    Load Addr    Size         Type   Attr      Idx    E Section Name        Object
 
-    0x1ffff004        -       0x00000118   Zero   RW           28    .bss                freedom.o
-    0x1ffff11c   0x00000af0   0x00000004   PAD
-    0x1ffff120        -       0x00000100   Zero   RW          191    STACK               startup_mkl25z4.o
+    0x1ffff000   0x00000ae0   0x00000004   Data   RW          211    .data               system_mkl25z4.o
+
+
+    Execution Region ER_ZI (Exec base: 0x1ffff004, Load base: 0x00000ae4, Size: 0x0000021c, Max: 0xffffffff, ABSOLUTE)
+
+    Exec Addr    Load Addr    Size         Type   Attr      Idx    E Section Name        Object
+
+    0x1ffff004        -       0x00000118   Zero   RW           29    .bss                freedom.o
+    0x1ffff11c   0x00000ae4   0x00000004   PAD
+    0x1ffff120        -       0x00000100   Zero   RW          197    STACK               startup_mkl25z4.o
 
 
 ==============================================================================
@@ -315,14 +321,14 @@ Image component sizes
 
       Code (inc. data)   RO Data    RW Data    ZI Data      Debug   Object Name
 
-      1640        160          0          0        280     233257   freedom.o
+      1626        118          0          0        280     233000   freedom.o
         56         30        192          0        256        872   startup_mkl25z4.o
        740         84          0          4          0       1739   system_mkl25z4.o
 
     ----------------------------------------------------------------------
-      2436        274        224          4        540     235868   Object Totals
+      2424        232        224          4        540     235611   Object Totals
          0          0         32          0          0          0   (incl. Generated)
-         0          0          0          0          4          0   (incl. Padding)
+         2          0          0          0          4          0   (incl. Padding)
 
     ----------------------------------------------------------------------
 
@@ -360,15 +366,15 @@ Image component sizes
 
       Code (inc. data)   RO Data    RW Data    ZI Data      Debug   
 
-      2572        290        224          4        540     235412   Grand Totals
-      2572        290        224          4        540     235412   ELF Image Totals
-      2572        290        224          4          0          0   ROM Totals
+      2560        248        224          4        540     235243   Grand Totals
+      2560        248        224          4        540     235243   ELF Image Totals
+      2560        248        224          4          0          0   ROM Totals
 
 ==============================================================================
 
-    Total RO  Size (Code + RO Data)                 2796 (   2.73kB)
+    Total RO  Size (Code + RO Data)                 2784 (   2.72kB)
     Total RW  Size (RW Data + ZI Data)               544 (   0.53kB)
-    Total ROM Size (Code + RO Data + RW Data)       2800 (   2.73kB)
+    Total ROM Size (Code + RO Data + RW Data)       2788 (   2.72kB)
 
 ==============================================================================
 
