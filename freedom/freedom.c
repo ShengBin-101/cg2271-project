@@ -545,7 +545,7 @@ int main(void) {
         if (!Q_Empty(&rx_q)) {
             uint8_t data = Q_Dequeue(&rx_q);
             decode_packet(&data, 1);
-						deocde__motor_control(data);
+						decode_motor_control(data);
         }
     }
 }
