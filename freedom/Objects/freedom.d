@@ -6,3 +6,4 @@
 .\objects\freedom.o: C:\Users\Ranee\AppData\Local\Arm\Packs\ARM\CMSIS\5.6.0\CMSIS\Core\Include\cmsis_compiler.h
 .\objects\freedom.o: C:\Users\Ranee\AppData\Local\Arm\Packs\ARM\CMSIS\5.6.0\CMSIS\Core\Include\cmsis_armcc.h
 .\objects\freedom.o: .\RTE\Device\MKL25Z128xxx4\system_MKL25Z4.h
+.\objects\freedom.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
