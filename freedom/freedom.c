@@ -236,32 +236,6 @@ void set_LED_intensity(uint8_t red, uint8_t green, uint8_t blue) {
     }
 }
 
-void decode_packet(volatile uint8_t *packet, uint8_t length) {
-    if (length < 1) {
-        // Packet too short to contain data
-      set_LED_intensity(4, 4, 4);  
-			return;
-    }
-
-    uint8_t data = packet[0];
-
-    // Extract control levels from the received byte
-    uint8_t leftLevel = (data >> 0) & 0x03; 		// 11
-    uint8_t rightLevel = (data >> 2) & 0x03; 		// 11
-    uint8_t forwardLevel = (data >> 4) & 0x03; 	// 11
-    uint8_t backwardLevel = (data >> 6) & 0x03; // 11
-
-    // Set LED intensities based on control levels
-    
-		if (backwardLevel) {
-			set_LED_intensity(1,1,0);
-		}
-		else{
-			set_LED_intensity(forwardLevel, leftLevel, rightLevel);
-		}
-    // Process the extracted control levels
-    // Implement your control logic here
-}
 
 /** MOTOR CONTROL FUNCTIONS **/
 void initMotorPWM(void) {
@@ -490,7 +464,9 @@ void movement_master_control(struct movementControlMessage msg) {
 }
 
 // Function to decode the received byte and map it to motor duty cycles
-void decode_motor_control(uint8_t data) {
+void decode_motor_control(uint8_t* packet) {
+    // Extract the data byte
+    uint8_t data = *packet;
     // Extract the upper 4 bits (forward/backward control)
     uint8_t forwardBackward = (data >> 4) & 0x0F;
 
@@ -532,6 +508,60 @@ void decode_motor_control(uint8_t data) {
 
     // call method to set motor duty cycles
 		movement_master_control(controlMessage);
+}
+
+void decode_packet(uint8_t* packet, uint8_t length) {
+    if (length < 1) {
+        // Packet too short to contain data
+      set_LED_intensity(4, 4, 4);  
+			return;
+    }
+
+    uint8_t data = packet[0];
+    
+    // Process the extracted control levels
+    // Implement your control logic here
+        // Extract the upper 4 bits (forward/backward control)
+        uint8_t forwardBackward = (data & 0xF0) >> 4;
+
+        // Extract the lower 4 bits (left/right control)
+        uint8_t leftRight = data & 0x0F;
+    
+        // Create a structure to store the movement control levels
+        struct movementControlMessage controlMessage;
+    
+        // Populate the forward/backward fields
+        if (forwardBackward <= 7) {
+            // Values 0000–0111 indicate backward movement
+            controlMessage.forwardLevel = 0; // No forward movement
+            controlMessage.backwardLevel = 7 - forwardBackward; // Map 0000 to 7, 0111 to 0
+        } else if (forwardBackward >= 8 && forwardBackward <= 14) {
+            // Values 1000–1110 indicate forward movement
+            controlMessage.forwardLevel = forwardBackward - 8; // Map 1000 to 1, 1110 to 7
+            controlMessage.backwardLevel = 0; // No backward movement
+        } else {
+            // Value 1111 is unused
+            controlMessage.forwardLevel = 0;
+            controlMessage.backwardLevel = 0;
+        }
+    
+        // Populate the left/right fields based on the mapping
+        if (leftRight <= 7) {
+            // Values 0000–0111 indicate left movement
+            controlMessage.leftLevel = 7 - leftRight; // Map 0000 to 7, 0111 to 0
+            controlMessage.rightLevel = 0; // No right movement
+        } else if (leftRight >= 8 && leftRight <= 14) {
+            // Values 1000–1110 indicate right movement
+            controlMessage.rightLevel = leftRight - 8; // Map 1000 to 1, 1110 to 7
+            controlMessage.leftLevel = 0; // No left movement
+        } else {
+            // Value 1111 is unused
+            controlMessage.leftLevel = 0;
+            controlMessage.rightLevel = 0;
+        }
+    
+        // call method to set motor duty cycles
+            movement_master_control(controlMessage);
 }
 
 
@@ -616,7 +646,14 @@ int main(void) {
         if (!Q_Empty(&rx_q)) {
             uint8_t data = Q_Dequeue(&rx_q);
             decode_packet(&data, 1);
-						decode_motor_control(data);
+        }
+        else {
+            // forward 0b11100000
+
+            uint8_t data = 0b11100000; 
+            // decode_motor_control(&data);
+            decode_packet(&data, 1);
+            // movement_master_control((struct movementControlMessage){1, 0, 0, 0});
         }
     }
 }
