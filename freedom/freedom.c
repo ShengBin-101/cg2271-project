@@ -278,6 +278,77 @@ void decode_motor_control(uint8_t data) {
 
 }
 
+
+// ####################### START OF LED TASK ###########################
+
+// The numbering here looks weird but follows a line on the left-side of the board
+#define RED_LED_1 8 		// 	PortB Pin 8 
+#define GREEN_LED_1 7 //	PortC Pin 7
+#define GREEN_LED_2 0 //	PortC Pin 0
+#define GREEN_LED_3 3 //	PortC Pin 3
+#define GREEN_LED_4 4 //	PortC Pin 4
+#define GREEN_LED_5 5 //	PortC Pin 5
+#define GREEN_LED_6 6 //	PortC Pin 6
+#define GREEN_LED_7 10 //	PortC Pin 10
+#define GREEN_LED_8 11 //	PortC Pin 11
+#define GREEN_LED_9 12 //	PortC Pin 12
+#define GREEN_LED_10 13//	PortC Pin 13
+#define MASK(x) (1 << (x))
+
+
+void InitLEDGPIO(void) {
+	
+	// Green LED
+  //Enable CLock to PORTC
+  SIM->SCGC5 |= (SIM_SCGC5_PORTC_MASK); 
+  
+  //Configure MUX settings 
+  PORTC->PCR[GREEN_LED_1] &= ~PORT_PCR_MUX_MASK; //clear 
+  PORTC->PCR[GREEN_LED_1] |= PORT_PCR_MUX(1); //Assign output
+  
+  PORTC->PCR[GREEN_LED_2] &= ~PORT_PCR_MUX_MASK; //clear 
+  PORTC->PCR[GREEN_LED_2] |= PORT_PCR_MUX(1); //Assign output 
+  
+  PORTC->PCR[GREEN_LED_3] &= ~PORT_PCR_MUX_MASK; //clear 
+  PORTC->PCR[GREEN_LED_3] |= PORT_PCR_MUX(1); //Assign output 
+   
+  PORTC->PCR[GREEN_LED_4] &= ~PORT_PCR_MUX_MASK; //clear 
+  PORTC->PCR[GREEN_LED_4] |= PORT_PCR_MUX(1); //Assign output 
+   
+  PORTC->PCR[GREEN_LED_5] &= ~PORT_PCR_MUX_MASK; //clear 
+  PORTC->PCR[GREEN_LED_5] |= PORT_PCR_MUX(1); //Assign output 
+   
+  PORTC->PCR[GREEN_LED_6] &= ~PORT_PCR_MUX_MASK; //clear 
+  PORTC->PCR[GREEN_LED_6] |= PORT_PCR_MUX(1); //Assign output 
+   
+  PORTC->PCR[GREEN_LED_7] &= ~PORT_PCR_MUX_MASK; //clear 
+  PORTC->PCR[GREEN_LED_7] |= PORT_PCR_MUX(1); //Assign output 
+   
+  PORTC->PCR[GREEN_LED_8] &= ~PORT_PCR_MUX_MASK; //clear 
+  PORTC->PCR[GREEN_LED_8] |= PORT_PCR_MUX(1); //Assign output 
+  
+  PORTC->PCR[GREEN_LED_9] &= ~PORT_PCR_MUX_MASK; //clear 
+  PORTC->PCR[GREEN_LED_9] |= PORT_PCR_MUX(1); //Assign output 
+   
+  PORTC->PCR[GREEN_LED_10] &= ~PORT_PCR_MUX_MASK; //clear 
+  PORTC->PCR[GREEN_LED_10] |= PORT_PCR_MUX(1); //Assign output 
+  
+  //Set Data Direction Registers for PortB and PortD
+  PTC->PDDR |= (MASK(GREEN_LED_1) | MASK(GREEN_LED_2) | MASK(GREEN_LED_3) | MASK(GREEN_LED_4) | MASK(GREEN_LED_5) | 
+                MASK(GREEN_LED_6) | MASK(GREEN_LED_7) | MASK(GREEN_LED_8) | MASK(GREEN_LED_9) | MASK(GREEN_LED_10));
+								
+								
+								
+								
+	// RED LED 
+	SIM->SCGC5 |= SIM_SCGC5_PORTB_MASK;
+    
+	PORTB->PCR[RED_LED_1] &= ~PORT_PCR_MUX_MASK;
+	PORTB->PCR[RED_LED_1] |= PORT_PCR_MUX(1);
+	
+	PTB->PDDR |= MASK(RED_LED_1);
+};
+
 int main(void) {
     SystemCoreClockUpdate();
     initUART2(BAUD_RATE);
