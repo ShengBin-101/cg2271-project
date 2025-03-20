@@ -47,51 +47,45 @@ void processController(ControllerPtr ctl) {
   if (!ctl->isConnected() || !ctl->hasData() || !ctl->isGamepad()) return;
 
   // Read values:
-  // axisRX: range (-511 to 512) – used for steering left/right.
+  // axisRX: range (-508 to 512) – used for steering left/right.
   int16_t axisRX = ctl->axisRX();
-  // throttle(): (0 to 1023) – used as forward control.
-  int throttleVal = ctl->throttle();
-  // brake(): (0 to 1023) – used as backward control.
-  int brakeVal = ctl->brake();
+  // axisY: range (-511 to 512) – used for steering left/right.
+  int16_t axisLY = ctl->axisY();
 
-  // --- Map axisRX to left/right levels ---
-  // If axisRX is negative, map its absolute value to left level.
-  // If positive, map to right level.
-  uint8_t leftLevel = 0, rightLevel = 0;
-  if (axisRX < 0) {
-    // Map abs(axisRX) from 0-511 to 0-3
-    leftLevel = map(abs(axisRX), 0, 508, 0, 3);
-    if (leftLevel > 3) leftLevel = 3;
-  } else if (axisRX > 0) {
-    rightLevel = map(axisRX, 0, 512, 0, 3);
-    if (rightLevel > 3) rightLevel = 3;
-  }
+  // --- Map axisRX to steer levels ---
+  // Most left steer will be level 0
+  // Most right steer will be level 14
+  // No steer will be level 7
+  uint8_t steerLevel = 7;
+  if (axisRX < -31)  
+    steerLevel = map(abs(axisRX), 32, 508, 6, 0);
+  else if (axisRX > 31)  
+    steerLevel = map(axisRX, 32, 512, 8, 14);
   
-  // --- Map throttle and brake to forward/backward levels ---
-  // Map throttle (forward) from 0-1023 to 0-3.
-  uint8_t forwardLevel = map(throttleVal, 0, 1020, 0, 3);
-  if (forwardLevel > 3) forwardLevel = 3;
-  // Map brake (backward) from 0-1023 to 0-3.
-  uint8_t backwardLevel = map(brakeVal, 0, 1020, 0, 3);
-  if (backwardLevel > 3) backwardLevel = 3;
+  // --- Map axisLY to throttle levels ---
+  // Most backward throttle will be level 0
+  // Most forward throttle will be level 14
+  // No throttle will be level 7
+  uint8_t throttleLevel = 7;
+  if (axisLY > 31)  
+    throttleLevel = map(axisLY, 32, 512, 6, 0);
+  else if (axisLY < -31)  
+    throttleLevel = map(abs(axisLY), 32, 508, 8, 14);
 
-  // --- Pack the 4 levels into one byte ---
-  // Bit layout (from LSB to MSB):
-  // Bits 1-0: left, Bits 3-2: right, Bits 5-4: forward, Bits 7-6: backward
-  uint8_t packet = ((backwardLevel & 0x03) << 6) |
-                   ((forwardLevel  & 0x03) << 4) |
-                   ((rightLevel    & 0x03) << 2) |
-                   ((leftLevel     & 0x03) << 0);
+  // --- Pack throttleLevel into bits 7-4 and steerLevel into bits 3-0 ---
+  uint8_t packet = ((throttleLevel & 0x0F) << 4) |  // Bits 7-4
+                   ((steerLevel & 0x0F) << 0);      // Bits 3-0
 
   // Send the packet over UART.
   UARTSerial.write(packet);
 
   // Optional: print debug info.
-  Serial.print("axisRX: "); Serial.print(axisRX);
-  Serial.print(" | Left: "); Serial.print(leftLevel);
-  Serial.print(" Right: "); Serial.print(rightLevel);
-  Serial.print(" | Forward: "); Serial.print(forwardLevel);
-  Serial.print(" Backward: "); Serial.println(backwardLevel);
+  Serial.print("Steering: "); Serial.print(axisRX);
+  Serial.print(" | "); Serial.print(steerLevel);
+  Serial.print(" level |");
+  Serial.print(" Throttle: "); Serial.print(axisLY);
+  Serial.print(" | "); Serial.print(throttleLevel);
+  Serial.println(" level");
 }
 
 // Process all connected controllers.
