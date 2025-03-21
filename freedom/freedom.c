@@ -48,10 +48,10 @@
 // Structure to store movement control levels
 struct movementControlMessage
 {
-    uint8_t forwardLevel;   // Level of forward movement (0-7)
-    uint8_t backwardLevel;  // Level of backward movement (0-7)
-    uint8_t leftLevel;      // Level of left movement (0-7)
-    uint8_t rightLevel;     // Level of right movement (0-7)
+    int forwardLevel;   // Level of forward movement (0-7)
+    int backwardLevel;  // Level of backward movement (0-7)
+    int leftLevel;      // Level of left movement (0-7)
+    int rightLevel;     // Level of right movement (0-7)
 };
 
 // Create a queue 
@@ -324,7 +324,7 @@ void initMotorPWM(void) {
 	 //__enable_irq();
 }
 
-void move_forward(uint8_t forward_level){
+void move_forward(int forward_level){
 		int speed = (forward_level == 0) ? 0 : (int) (1400 + (800 + forward_level * 100) * (forward_level - 1));
 	
     FRONT_RIGHT_BACKWARD_CV = 0;
@@ -340,7 +340,7 @@ void move_forward(uint8_t forward_level){
     REAR_LEFT_FORWARD_CV = speed;
 }
 
-void move_backward(uint8_t backward_level){
+void move_backward(int backward_level){
 		int speed = (backward_level == 0) ? 0 : (int) (1400 + (800 + backward_level * 100) * (backward_level - 1));
     
 		FRONT_RIGHT_BACKWARD_CV = speed;
@@ -356,7 +356,7 @@ void move_backward(uint8_t backward_level){
     REAR_LEFT_FORWARD_CV = 0;
 }
 
-void move_right(uint8_t forward_level, uint8_t right_level) {
+void move_right(int forward_level, int right_level) {
 		// forward_level > 0, right_level > 0
 	
     int baseSpeed = (int) (1400 + (800 + forward_level * 100) * (forward_level - 1));
@@ -375,7 +375,7 @@ void move_right(uint8_t forward_level, uint8_t right_level) {
     REAR_RIGHT_BACKWARD_CV = 0;
 }
 
-void move_left(uint8_t forward_level, uint8_t left_level) {
+void move_left(int forward_level, int left_level) {
 		// forward_level > 0, left_level > 0
 
     int baseSpeed = (int) (1400 + (800 + forward_level * 100) * (forward_level - 1));
@@ -394,7 +394,7 @@ void move_left(uint8_t forward_level, uint8_t left_level) {
     REAR_RIGHT_BACKWARD_CV = 0;
 }
 
-void move_left_on_spot(uint8_t left_level) {
+void move_left_on_spot(int left_level) {
 		int speed = (left_level == 0) ? 0 : (1700 + 700 * (int) (left_level - 1));
 	
     FRONT_RIGHT_BACKWARD_CV = 0;
@@ -410,7 +410,7 @@ void move_left_on_spot(uint8_t left_level) {
     REAR_LEFT_FORWARD_CV = 0;
 }
 
-void move_right_on_spot(uint8_t right_level) {
+void move_right_on_spot(int right_level) {
 		int speed = (right_level == 0) ? 0 : (1700 + 700 * (int) (right_level - 1));
 
     FRONT_RIGHT_BACKWARD_CV = speed;
@@ -441,13 +441,14 @@ void stop_movement() {
 }
 
 void movement_master_control(struct movementControlMessage msg) {
-		uint8_t f = msg.forwardLevel;
-		uint8_t b = msg.backwardLevel;
-		uint8_t l = msg.leftLevel;
-		uint8_t r = msg.rightLevel;
+		int f = msg.forwardLevel;
+		int b = msg.backwardLevel;
+		int l = msg.leftLevel;
+		int r = msg.rightLevel;
 	
 		if (f > 0 && b == 0 && l == 0 && r == 0) {
 				move_forward(f);
+                set_LED_intensity(4, 0, 0);
 		} else if (b > 0 && f == 0 && l == 0 && r == 0) {
 				move_backward(b);
 		} else if (l > 0 && f == 0 && b == 0 && r == 0){
@@ -463,69 +464,28 @@ void movement_master_control(struct movementControlMessage msg) {
 		}
 }
 
-// Function to decode the received byte and map it to motor duty cycles
-void decode_motor_control(uint8_t* packet) {
-    // Extract the data byte
-    uint8_t data = *packet;
-    // Extract the upper 4 bits (forward/backward control)
-    uint8_t forwardBackward = (data >> 4) & 0x0F;
-
-    // Extract the lower 4 bits (left/right control)
-    uint8_t leftRight = data & 0x0F;
-
-    // Create a structure to store the movement control levels
-    struct movementControlMessage controlMessage;
-
-    // Populate the forward/backward fields
-    if (forwardBackward <= 7) {
-        // Values 0000–0111 indicate backward movement
-        controlMessage.forwardLevel = 0; // No forward movement
-        controlMessage.backwardLevel = 7 - forwardBackward; // Map 0000 to 7, 0111 to 0
-    } else if (forwardBackward >= 8 && forwardBackward <= 14) {
-        // Values 1000–1110 indicate forward movement
-        controlMessage.forwardLevel = forwardBackward - 8; // Map 1000 to 1, 1110 to 7
-        controlMessage.backwardLevel = 0; // No backward movement
-    } else {
-        // Value 1111 is unused
-        controlMessage.forwardLevel = 0;
-        controlMessage.backwardLevel = 0;
-    }
-
-    // Populate the left/right fields based on the mapping
-    if (leftRight <= 7) {
-        // Values 0000–0111 indicate left movement
-        controlMessage.leftLevel = 7 - leftRight; // Map 0000 to 7, 0111 to 0
-        controlMessage.rightLevel = 0; // No right movement
-    } else if (leftRight >= 8 && leftRight <= 14) {
-        // Values 1000–1110 indicate right movement
-        controlMessage.rightLevel = leftRight - 8; // Map 1000 to 1, 1110 to 7
-        controlMessage.leftLevel = 0; // No left movement
-    } else {
-        // Value 1111 is unused
-        controlMessage.leftLevel = 0;
-        controlMessage.rightLevel = 0;
-    }
-
-    // call method to set motor duty cycles
-		movement_master_control(controlMessage);
-}
-
 void decode_packet(uint8_t* packet, uint8_t length) {
     if (length < 1) {
         // Packet too short to contain data
-      set_LED_intensity(4, 4, 4);  
+      set_LED_intensity(0, 0, 0);  
 			return;
+    }
+    else {
+        set_LED_intensity(0, 4, 0); 
     }
 
     uint8_t data = packet[0];
+
+    // data = 0x60; // 0110 0000  (Backwards)
+    // data = 0xE0; // 1110 0000   (Forwards)
     
     // Process the extracted control levels
     // Implement your control logic here
         // Extract the upper 4 bits (forward/backward control)
-        uint8_t forwardBackward = (data & 0xF0) >> 4;
+        int forwardBackward = (int)(data >> 4);
 
         // Extract the lower 4 bits (left/right control)
-        uint8_t leftRight = data & 0x0F;
+        int leftRight = (int)(data & 0x0F);
     
         // Create a structure to store the movement control levels
         struct movementControlMessage controlMessage;
@@ -535,10 +495,12 @@ void decode_packet(uint8_t* packet, uint8_t length) {
             // Values 0000–0111 indicate backward movement
             controlMessage.forwardLevel = 0; // No forward movement
             controlMessage.backwardLevel = 7 - forwardBackward; // Map 0000 to 7, 0111 to 0
-        } else if (forwardBackward >= 8 && forwardBackward <= 14) {
+            set_LED_intensity(0, 0, 4);  
+        } else if (forwardBackward >= 8 && forwardBackward <= 14) { 
             // Values 1000–1110 indicate forward movement
             controlMessage.forwardLevel = forwardBackward - 8; // Map 1000 to 1, 1110 to 7
             controlMessage.backwardLevel = 0; // No backward movement
+            set_LED_intensity(0, 4, 0);  
         } else {
             // Value 1111 is unused
             controlMessage.forwardLevel = 0;
@@ -641,19 +603,19 @@ int main(void) {
 		initMotorPWM();
 
     LED_Init();
-	
+    set_LED_intensity(1, 1, 1);  
+
     while (1) {
         if (!Q_Empty(&rx_q)) {
             uint8_t data = Q_Dequeue(&rx_q);
             decode_packet(&data, 1);
         }
-        else {
-            // forward 0b11100000
-
-            uint8_t data = 0b11100000; 
-            // decode_motor_control(&data);
-            decode_packet(&data, 1);
-            // movement_master_control((struct movementControlMessage){1, 0, 0, 0});
-        }
+        //else {
+						// uint8_t data = 0xA7;  // forward 
+						// uint8_t data = 0x17; // backward
+						// uint8_t data = 0x71; // left
+						// uint8_t data = 0x7A; // right
+            // decode_packet(&data, 1);
+        //}
     }
 }
