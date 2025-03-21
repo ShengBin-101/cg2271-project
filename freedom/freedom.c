@@ -7,6 +7,9 @@
 #define UART2_BAUD_RATE 9600
 #define UART2_CLOCK 48000000
 
+#define MIN_SPEED 1000
+#define MAX_SPEED 5000
+
 //LED pin assignments
 #define RED_LED_PIN 18   // PTB18
 #define GREEN_LED_PIN 19 // PTB19
@@ -325,8 +328,9 @@ void initMotorPWM(void) {
 }
 
 void move_forward(int forward_level){
-		int speed = (forward_level == 0) ? 0 : (int) (1400 + (800 + forward_level * 100) * (forward_level - 1));
-	
+		int speed = (forward_level == 0) ? 0 : (int) (MIN_SPEED + (800 + forward_level * 100) * (forward_level - 1));
+        // int speed = (forward_level == 0) ? 0 : (int) (1000 + log2(1 + forward_level) * 1000);
+
     FRONT_RIGHT_BACKWARD_CV = 0;
     FRONT_RIGHT_FORWARD_CV = speed;
 	
@@ -341,9 +345,9 @@ void move_forward(int forward_level){
 }
 
 void move_backward(int backward_level){
-		int speed = (backward_level == 0) ? 0 : (int) (1400 + (800 + backward_level * 100) * (backward_level - 1));
-    
-		FRONT_RIGHT_BACKWARD_CV = speed;
+		int speed = (backward_level == 0) ? 0 : (int) (MIN_SPEED + (800 + backward_level * 100) * (backward_level - 1));
+        // int speed = (backward_level == 0) ? 0 : (int) (1000 + log2(1 + backward_level) * 1000);
+        FRONT_RIGHT_BACKWARD_CV = speed;
     FRONT_RIGHT_FORWARD_CV = 0;
 	
     REAR_RIGHT_BACKWARD_CV = speed;
@@ -356,10 +360,11 @@ void move_backward(int backward_level){
     REAR_LEFT_FORWARD_CV = 0;
 }
 
-void move_right(int forward_level, int right_level) {
+void move_forward_right(int forward_level, int right_level) {
 		// forward_level > 0, right_level > 0
 	
-    int baseSpeed = (int) (1400 + (800 + forward_level * 100) * (forward_level - 1));
+    // int baseSpeed = (int) (1400 + (800 + forward_level * 100) * (forward_level - 1));
+    int baseSpeed = (int) (MIN_SPEED + log2(1 + forward_level) * 1000);
     float turnFactor = log2(3 + right_level) / log2(10) * baseSpeed * 0.9;
 
 		// Reduce speed for right wheels to turn left
@@ -375,10 +380,11 @@ void move_right(int forward_level, int right_level) {
     REAR_RIGHT_BACKWARD_CV = 0;
 }
 
-void move_left(int forward_level, int left_level) {
+void move_forward_left(int forward_level, int left_level) {
 		// forward_level > 0, left_level > 0
 
-    int baseSpeed = (int) (1400 + (800 + forward_level * 100) * (forward_level - 1));
+    // int baseSpeed = (int) (1400 + (800 + forward_level * 100) * (forward_level - 1));
+    int baseSpeed = (int) (MIN_SPEED + log2(1 + forward_level) * 1000);
     float turnFactor = log2(3 + left_level) / log2(10) * baseSpeed * 0.9;
 
     // Reduce speed for left wheels to turn left
@@ -395,7 +401,7 @@ void move_left(int forward_level, int left_level) {
 }
 
 void move_left_on_spot(int left_level) {
-		int speed = (left_level == 0) ? 0 : (1700 + 700 * (int) (left_level - 1));
+		int speed = (left_level == 0) ? 0 : (MIN_SPEED + 700 * (int) (left_level - 1));
 	
     FRONT_RIGHT_BACKWARD_CV = 0;
     FRONT_RIGHT_FORWARD_CV = speed;
@@ -411,7 +417,7 @@ void move_left_on_spot(int left_level) {
 }
 
 void move_right_on_spot(int right_level) {
-		int speed = (right_level == 0) ? 0 : (1700 + 700 * (int) (right_level - 1));
+		int speed = (right_level == 0) ? 0 : (MIN_SPEED + 700 * (int) (right_level - 1));
 
     FRONT_RIGHT_BACKWARD_CV = speed;
     FRONT_RIGHT_FORWARD_CV = 0;
@@ -441,27 +447,70 @@ void stop_movement() {
 }
 
 void movement_master_control(struct movementControlMessage msg) {
-		int f = msg.forwardLevel;
-		int b = msg.backwardLevel;
-		int l = msg.leftLevel;
-		int r = msg.rightLevel;
-	
-		if (f > 0 && b == 0 && l == 0 && r == 0) {
-				move_forward(f);
-                set_LED_intensity(4, 0, 0);
-		} else if (b > 0 && f == 0 && l == 0 && r == 0) {
-				move_backward(b);
-		} else if (l > 0 && f == 0 && b == 0 && r == 0){
-				move_left_on_spot(l);
-		}	else if (r > 0 && f == 0 && b == 0 && l == 0) {
-				move_right_on_spot(r);
-		}	else if (l > 0 && f > 0 && b == 0 && r == 0) {
-				move_left(f, l);
-		}	else if (r > 0 && f > 0 && b == 0 && l == 0) {
-				move_right(f, r);
-		}	else {
-				stop_movement();
-		}
+    // Define a neutral zone threshold
+    const float NEUTRAL_THRESHOLD = 0.1;
+
+    // Normalize input levels to range -1.0 to 1.0
+    float linearSpeed = (msg.forwardLevel - msg.backwardLevel) / 7.0; // Forward/backward motion
+    // float angularSpeed = (msg.rightLevel - msg.leftLevel) / 7.0;      // Left/right turning
+    float angularSpeed = (msg.leftLevel - msg.rightLevel) / 7.0;
+
+    // Apply the neutral zone
+    if (fabs(linearSpeed) < NEUTRAL_THRESHOLD) {
+        linearSpeed = 0.0;
+    }
+    if (fabs(angularSpeed) < NEUTRAL_THRESHOLD) {
+        angularSpeed = 0.0;
+    }
+
+    // Calculate normalized wheel speeds
+    float leftWheelSpeedNormalized = linearSpeed - angularSpeed;
+    float rightWheelSpeedNormalized = linearSpeed + angularSpeed;
+
+    // Scale normalized speeds to motor PWM range
+    int leftWheelSpeed = (int)(MIN_SPEED + (MAX_SPEED - MIN_SPEED) * fabs(leftWheelSpeedNormalized));
+    int rightWheelSpeed = (int)(MIN_SPEED + (MAX_SPEED - MIN_SPEED) * fabs(rightWheelSpeedNormalized));
+
+    // Set motor directions and speeds
+    if (leftWheelSpeedNormalized > 0) {
+        // Left wheel forward
+        FRONT_LEFT_FORWARD_CV = leftWheelSpeed;
+        REAR_LEFT_FORWARD_CV = leftWheelSpeed;
+        FRONT_LEFT_BACKWARD_CV = 0;
+        REAR_LEFT_BACKWARD_CV = 0;
+    } else if (leftWheelSpeedNormalized < 0) {
+        // Left wheel backward
+        FRONT_LEFT_FORWARD_CV = 0;
+        REAR_LEFT_FORWARD_CV = 0;
+        FRONT_LEFT_BACKWARD_CV = leftWheelSpeed;
+        REAR_LEFT_BACKWARD_CV = leftWheelSpeed;
+    } else {
+        // Left wheel stop
+        FRONT_LEFT_FORWARD_CV = 0;
+        REAR_LEFT_FORWARD_CV = 0;
+        FRONT_LEFT_BACKWARD_CV = 0;
+        REAR_LEFT_BACKWARD_CV = 0;
+    }
+
+    if (rightWheelSpeedNormalized > 0) {
+        // Right wheel forward
+        FRONT_RIGHT_FORWARD_CV = rightWheelSpeed;
+        REAR_RIGHT_FORWARD_CV = rightWheelSpeed;
+        FRONT_RIGHT_BACKWARD_CV = 0;
+        REAR_RIGHT_BACKWARD_CV = 0;
+    } else if (rightWheelSpeedNormalized < 0) {
+        // Right wheel backward
+        FRONT_RIGHT_FORWARD_CV = 0;
+        REAR_RIGHT_FORWARD_CV = 0;
+        FRONT_RIGHT_BACKWARD_CV = rightWheelSpeed;
+        REAR_RIGHT_BACKWARD_CV = rightWheelSpeed;
+    } else {
+        // Right wheel stop
+        FRONT_RIGHT_FORWARD_CV = 0;
+        REAR_RIGHT_FORWARD_CV = 0;
+        FRONT_RIGHT_BACKWARD_CV = 0;
+        REAR_RIGHT_BACKWARD_CV = 0;
+    }
 }
 
 void decode_packet(uint8_t* packet, uint8_t length) {
