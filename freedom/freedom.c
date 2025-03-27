@@ -7,8 +7,8 @@
 #define UART2_BAUD_RATE 9600
 #define UART2_CLOCK 48000000
 
-#define MIN_SPEED 1000
-#define MAX_SPEED 5000
+#define MIN_SPEED 700
+#define MAX_SPEED 20000
 
 //LED pin assignments
 #define RED_LED_PIN 18   // PTB18
@@ -20,7 +20,7 @@
 #define FRONT_RIGHT_BACKWARD 0 //PB0, TPM1C0
 
 #define REAR_RIGHT_FORWARD 3 //PB3, TPM2C1, 
-#define REAR_RIGHT_BACKWARD 2 //PB2, TPM2C0
+#define REAR_RIGHT_BACKWARD 2 //PB2, TPM2C0 //PD1, TPM0C1
 
 #define FRONT_LEFT_FORWARD 31 //PE31, TPM0C4, 
 #define FRONT_LEFT_BACKWARD 3 //PD3, TPM0C3
@@ -33,7 +33,7 @@
 #define FRONT_RIGHT_BACKWARD_CV  TPM1_C0V
 
 #define REAR_RIGHT_FORWARD_CV    TPM2_C1V
-#define REAR_RIGHT_BACKWARD_CV   TPM2_C0V
+#define REAR_RIGHT_BACKWARD_CV   TPM0_C1V// TPM2_C0V
 
 #define FRONT_LEFT_FORWARD_CV		TPM0_C4V
 #define FRONT_LEFT_BACKWARD_CV 	TPM0_C3V
@@ -347,7 +347,7 @@ void move_forward(int forward_level){
 void move_backward(int backward_level){
 		int speed = (backward_level == 0) ? 0 : (int) (MIN_SPEED + (800 + backward_level * 100) * (backward_level - 1));
         // int speed = (backward_level == 0) ? 0 : (int) (1000 + log2(1 + backward_level) * 1000);
-        FRONT_RIGHT_BACKWARD_CV = speed;
+    FRONT_RIGHT_BACKWARD_CV = speed;
     FRONT_RIGHT_FORWARD_CV = 0;
 	
     REAR_RIGHT_BACKWARD_CV = speed;
@@ -446,14 +446,32 @@ void stop_movement() {
     REAR_LEFT_FORWARD_CV = 0;
 }
 
+
+
+// Helper function to scale speed non-linearly
+int scale_speed(float normalizedSpeed) {
+    float absSpeed = fabs(normalizedSpeed);
+    int scaledSpeed;
+
+    if (absSpeed <= 0.5) {
+        // For lower levels (0.0 to 0.5), use slower scaling
+        scaledSpeed = (int)(MIN_SPEED + (MAX_SPEED - MIN_SPEED) * (absSpeed * absSpeed)); // Quadratic scaling
+    } else {
+        // For higher levels (0.5 to 1.0), use faster scaling
+        scaledSpeed = (int)(MIN_SPEED + (MAX_SPEED - MIN_SPEED) * absSpeed);
+    }
+
+    return scaledSpeed;
+}
+
+
 void movement_master_control(struct movementControlMessage msg) {
     // Define a neutral zone threshold
     const float NEUTRAL_THRESHOLD = 0.1;
 
     // Normalize input levels to range -1.0 to 1.0
-    float linearSpeed = (msg.forwardLevel - msg.backwardLevel) / 7.0; // Forward/backward motion
-    // float angularSpeed = (msg.rightLevel - msg.leftLevel) / 7.0;      // Left/right turning
-    float angularSpeed = (msg.leftLevel - msg.rightLevel) / 7.0;
+    float linearSpeed = (msg.forwardLevel - msg.backwardLevel) / 7.0;   // Forward/backward motion     
+    float angularSpeed = (msg.leftLevel - msg.rightLevel) / 7.0;        // Left/right turning
 
     // Apply the neutral zone
     if (fabs(linearSpeed) < NEUTRAL_THRESHOLD) {
@@ -467,10 +485,10 @@ void movement_master_control(struct movementControlMessage msg) {
     float leftWheelSpeedNormalized = linearSpeed - angularSpeed;
     float rightWheelSpeedNormalized = linearSpeed + angularSpeed;
 
-    // Scale normalized speeds to motor PWM range
-    int leftWheelSpeed = (int)(MIN_SPEED + (MAX_SPEED - MIN_SPEED) * fabs(leftWheelSpeedNormalized));
-    int rightWheelSpeed = (int)(MIN_SPEED + (MAX_SPEED - MIN_SPEED) * fabs(rightWheelSpeedNormalized));
-
+    // Scale normalized speeds to motor PWM range with non-linear scaling
+     int leftWheelSpeed = scale_speed(leftWheelSpeedNormalized);
+     int rightWheelSpeed = scale_speed(rightWheelSpeedNormalized);
+    
     // Set motor directions and speeds
     if (leftWheelSpeedNormalized > 0) {
         // Left wheel forward
@@ -516,11 +534,11 @@ void movement_master_control(struct movementControlMessage msg) {
 void decode_packet(uint8_t* packet, uint8_t length) {
     if (length < 1) {
         // Packet too short to contain data
-      set_LED_intensity(0, 0, 0);  
+      //set_LED_intensity(0, 0, 0);  
 			return;
     }
     else {
-        set_LED_intensity(0, 4, 0); 
+        //set_LED_intensity(0, 4, 0); 
     }
 
     uint8_t data = packet[0];
