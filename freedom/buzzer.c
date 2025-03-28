@@ -19,7 +19,7 @@ static void delay(volatile uint32_t nof) {
 	}
 }
 
-void initPWM(void) {
+void initBuzzerPWM(void) {
 	// Enable clk to PORTB
 	SIM_SCGC5 |= SIM_SCGC5_PORTB_MASK;
 
@@ -109,12 +109,12 @@ void tAudio(void *argument) {
   * Application main thread
   *---------------------------------------------------------------------------*/
 
-int main(void) {
-	SystemCoreClockUpdate();
-	initPWM();
-	osKernelInitialize(); // Initialize the RTOS kernel
-	osThreadNew(tAudio, NULL, NULL); // Create music task
-	osKernelStart(); // Start the RTOS scheduler
+// int main(void) {
+// 	SystemCoreClockUpdate();
+// 	initPWM();
+// 	osKernelInitialize(); // Initialize the RTOS kernel
+// 	osThreadNew(tAudio, NULL, NULL); // Create music task
+// 	osKernelStart(); // Start the RTOS scheduler
 
-  for (;;) {}
-}
+//   for (;;) {}
+// }
