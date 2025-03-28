@@ -3,7 +3,11 @@
 #include "cmsis_os2.h"
 #include "MKL25Z4.h"
 
-#define BUZZER_PIN 0
+#define BUZZER_PIN 0 // PB0
+#define NOTE_T 400
+#define PAUSE_T 40
+#define END_T 1000
+#define VOLUME 0.9
 
 enum note_t { C6, D6, E6, F6, G6, A6, B6, REST};
 
@@ -51,7 +55,8 @@ void initPWM(void) {
 }
 
 int frequency_to_MOD(int freq) {
-	// fPWM = fTPM / (MOD + 1) = 48MHz / ps / (MOD + 1)
+	// freq = fTPM / (MOD + 1) = (48MHz / PS) / (MOD + 1)
+	// MOD = 48MHz / (PS * freq) - 1
     return (int)((48000000.0 / (128.0 * freq)) - 1);
 }
 
@@ -70,13 +75,11 @@ void play_note(enum note_t note) {
 	}
 
 	TPM1->MOD = frequency_to_MOD(frequency);
-	TPM1_C0V = frequency_to_MOD(frequency) * 0.9;
+	TPM1_C0V = frequency_to_MOD(frequency) * VOLUME;
 
-//	delay(1000000);  // Hold the note for the specified duration
-	osDelay(400);
+	osDelay(NOTE_T);
 	TPM1->MOD = 0;    // Silence between notes
-//	delay(10000);  // Short gap between notes
-	osDelay(40);
+	osDelay(PAUSE_T);
 
 
 }
@@ -98,7 +101,7 @@ void play_tune(const enum note_t *melody, int length) {
 void tAudio(void *argument) {
 	while (1) {
 		play_tune(melody, sizeof(melody) / sizeof(melody[0]));
-		osDelay(1000);  // Pause before repeating the song
+		osDelay(END_T);  // Pause before repeating the song
 	}
 }
 
@@ -115,3 +118,4 @@ int main(void) {
 
   for (;;) {}
 }
+
