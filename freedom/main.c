@@ -23,7 +23,9 @@ int main (void) {
  
   // System Initialization
   SystemCoreClockUpdate();
-  // ...
+  initMotorPWM();
+  initLED();
+  initBuzzerPWM();		
 	
 	// UART_thread
 	/*
@@ -67,6 +69,9 @@ int main (void) {
  
   osKernelInitialize();                 // Initialize CMSIS-RTOS
   osThreadNew(app_main, NULL, NULL);    // Create application main thread
+  
+				
+ 
   osKernelStart();                      // Start thread execution
   for (;;) {}
 }
