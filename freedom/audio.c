@@ -1,3 +1,4 @@
+/*
 #include "RTE_Components.h"
 #include  CMSIS_device_header
 #include "cmsis_os2.h"
@@ -105,10 +106,13 @@ void tAudio(void *argument) {
 	}
 }
 
+*/
+
  /*----------------------------------------------------------------------------
   * Application main thread
   *---------------------------------------------------------------------------*/
 
+/*
 int main(void) {
 	SystemCoreClockUpdate();
 	initPWM();
@@ -118,4 +122,4 @@ int main(void) {
 
   for (;;) {}
 }
-
+*/

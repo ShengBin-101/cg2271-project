@@ -1,5 +1,6 @@
 #include "MKL25Z4.h"
 #include "motor.h"
+#include <math.h> 
 
 #define LEFT_FORWARD 1
 #define LEFT_BACKWARD 0
@@ -77,4 +78,46 @@ void movement_master_control(struct movementControlMessage msg) {
         RIGHT_FORWARD_CV = 0;
         RIGHT_BACKWARD_CV = 0;
     }
+}
+
+// Decode function that returns a movementControlMessage
+struct movementControlMessage decode_motor_control(uint8_t data) {
+    struct movementControlMessage controlMessage;
+
+    // Upper 4 bits (forward/backward)
+    int forwardBackward = (int)(data >> 4);
+    // Lower 4 bits (left/right)
+    int leftRight = (int)data & 0x0F;
+
+    // Forward/backward
+    if (forwardBackward <= 7) {
+        // 0000–0111 => backward
+        controlMessage.forwardLevel  = 0;
+        controlMessage.backwardLevel = 7 - forwardBackward;
+    } else if (forwardBackward >= 8 && forwardBackward <= 14) {
+        // 1000–1110 => forward
+        controlMessage.forwardLevel  = forwardBackward - 8;
+        controlMessage.backwardLevel = 0;
+    } else {
+        // 1111 => unused
+        controlMessage.forwardLevel  = 0;
+        controlMessage.backwardLevel = 0;
+    }
+
+    // Left/right
+    if (leftRight <= 7) {
+        // 0000–0111 => left
+        controlMessage.leftLevel  = 7 - leftRight;
+        controlMessage.rightLevel = 0;
+    } else if (leftRight >= 8 && leftRight <= 14) {
+        // 1000–1110 => right
+        controlMessage.rightLevel = leftRight - 8;
+        controlMessage.leftLevel  = 0;
+    } else {
+        // 1111 => unused
+        controlMessage.leftLevel  = 0;
+        controlMessage.rightLevel = 0;
+    }
+
+    return controlMessage;
 }

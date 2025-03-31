@@ -2,6 +2,8 @@
 #include "buzzer.h"
 #include "cmsis_os2.h"
 
+#define BUZZER_PIN 0
+
 // Delay Function
 static void delay(volatile uint32_t nof) {
 	while(nof!=0) {
