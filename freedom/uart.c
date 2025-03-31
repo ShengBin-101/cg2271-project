@@ -1,7 +1,6 @@
 #include "MKL25Z4.h" // Device-specific register definitions
 #include "uart.h"    // Header file with declarations
 #include "cmsis_os2.h"
-#include "motor.h"
 
 // Define queue objects for transmit and receive
 Q_T tx_q, rx_q;
@@ -54,13 +53,13 @@ void UART2_IRQHandler(void) {
     NVIC_ClearPendingIRQ(UART2_IRQn); // Clear pending interrupt
 
     // TX interrupt - ready to transmit
-    if (UART2->S1 & UART_S1_TDRE_MASK) {
+    /* if (UART2->S1 & UART_S1_TDRE_MASK) {
         if (!Q_Empty(&tx_q)) {
             UART2->D = Q_Dequeue(&tx_q); // Send data from queue
         } else {
             UART2->C2 &= ~UART_C2_TIE_MASK; // Disable TX interrupt if queue is empty
         }
-    }
+    } */
 
     // RX interrupt - data received
     if (UART2->S1 & UART_S1_RDRF_MASK) {
@@ -77,7 +76,7 @@ void UART2_IRQHandler(void) {
     if (UART2->S1 & (UART_S1_OR_MASK | UART_S1_NF_MASK | 
                      UART_S1_FE_MASK | UART_S1_PF_MASK)) {
         // Just clear the flags by reading S1 and D (data)
-        (void)UART2->D;
+        //(void)UART2->D;
     }
 }
 
@@ -118,13 +117,12 @@ void initUART2(uint32_t baud_rate) {
 
     // Initialize circular queues
     Q_Init(&rx_q);
-    Q_Init(&tx_q);
 
     // Enable UART2 transmitter and receiver
     UART2->C2 |= (UART_C2_TE_MASK | UART_C2_RE_MASK);
 		
 		// Create semaphore if not yet created
-		if (!sem_uartRx) {
+		if (sem_uartRx == NULL) {
         sem_uartRx = osSemaphoreNew(Q_SIZE, 0, NULL);
     }
 }

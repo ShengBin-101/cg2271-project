@@ -3,7 +3,7 @@
  * Auto generated Run-Time-Environment Configuration File
  *      *** Do not modify ! ***
  *
- * Project: 'freedom' 
+ * Project: 'main' 
  * Target:  'Target 1' 
  */
 

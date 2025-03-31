@@ -11,7 +11,7 @@
 #define UART2_INT_PRIO 128 // Interrupt priority
 
 // Size of the UART transmit/receive buffer queue
-#define Q_SIZE 128
+#define Q_SIZE 256
 
 // Structure to define a circular queue
 typedef struct {

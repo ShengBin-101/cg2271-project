@@ -2,83 +2,122 @@
 #include "motor.h"
 #include <math.h> 
 
-#define LEFT_FORWARD 1
-#define LEFT_BACKWARD 0
-#define RIGHT_FORWARD 3
-#define RIGHT_BACKWARD 2
-
-#define LEFT_FORWARD_CV   TPM0_C0V
-#define LEFT_BACKWARD_CV  TPM0_C1V
-#define RIGHT_FORWARD_CV  TPM0_C2V
-#define RIGHT_BACKWARD_CV TPM0_C3V
+struct movementControlMessage idle = {0, 0, 0, 0};
+struct movementControlMessage forward = {7, 0, 0, 0};
+struct movementControlMessage backward = {0, 7, 0, 0};
+struct movementControlMessage left = {0, 0, 7, 0};
+struct movementControlMessage right = {0, 0, 0, 7};
 
 void initMotorPWM(void) {
+    //init 2 pins, 1 for forward, 1 for backward
+    //__disable_irq();
     SIM_SCGC5 |= SIM_SCGC5_PORTD_MASK;
 
+    //left
     PORTD->PCR[LEFT_BACKWARD] &= ~PORT_PCR_MUX_MASK;
     PORTD->PCR[LEFT_BACKWARD] |= PORT_PCR_MUX(4);
     PORTD->PCR[LEFT_FORWARD] &= ~PORT_PCR_MUX_MASK;
     PORTD->PCR[LEFT_FORWARD] |= PORT_PCR_MUX(4);
-
+ 
+    //right
     PORTD->PCR[RIGHT_BACKWARD] &= ~PORT_PCR_MUX_MASK;
     PORTD->PCR[RIGHT_BACKWARD] |= PORT_PCR_MUX(4);
     PORTD->PCR[RIGHT_FORWARD] &= ~PORT_PCR_MUX_MASK;
     PORTD->PCR[RIGHT_FORWARD] |= PORT_PCR_MUX(4);
 
     SIM_SCGC6 |= SIM_SCGC6_TPM0_MASK;
-
+ 
     TPM0->SC &= ~((TPM_SC_CMOD_MASK) | (TPM_SC_PS_MASK));
-    SIM->SOPT2 &= ~SIM_SOPT2_TPMSRC_MASK;
+		
+		SIM->SOPT2 &= ~SIM_SOPT2_TPMSRC_MASK;
     SIM->SOPT2 |= SIM_SOPT2_TPMSRC(1);
-
+	  
     TPM0->MOD = 7500;
-
-    TPM0->SC |= (TPM_SC_CMOD(1) | TPM_SC_PS(7));
-    TPM0->SC &= ~(TPM_SC_CPWMS_MASK);
-
+    
+	  TPM0->SC |= (TPM_SC_CMOD(1) | TPM_SC_PS(7));
+	  TPM0->SC &= ~(TPM_SC_CPWMS_MASK);
+    
+    TPM0_C0SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
+    TPM0_C1SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
+    TPM0_C2SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
+    TPM0_C3SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
+    
     TPM0_C0SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
     TPM0_C1SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
     TPM0_C2SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
     TPM0_C3SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
+ 
+    TPM0_C0V = 0; // LEFT_FORWARD_CV
+    TPM0_C1V = 0; // LEFT_BACKWARD_CV
+    TPM0_C2V = 0; // RIGHT_FORWARD_CV
+    TPM0_C3V = 0; // RIGHT_BACKWARD_CV
 
-    LEFT_FORWARD_CV = 0;
-    LEFT_BACKWARD_CV = 0;
-    RIGHT_FORWARD_CV = 0;
-    RIGHT_BACKWARD_CV = 0;
 }
 
 void movement_master_control(struct movementControlMessage msg) {
-    float linearSpeed = (msg.forwardLevel - msg.backwardLevel) / 7.0;
-    float angularSpeed = (msg.leftLevel - msg.rightLevel) / 7.0;
+  // Define a neutral zone threshold
+  const float NEUTRAL_THRESHOLD = 0.1;
 
-    float leftWheelSpeedNormalized = linearSpeed - angularSpeed;
-    float rightWheelSpeedNormalized = linearSpeed + angularSpeed;
+  // Normalize input levels to range -1.0 to 1.0
+  float linearSpeed = (msg.forwardLevel - msg.backwardLevel) / 7.0;   // Forward/backward motion     
+  float angularSpeed = (msg.leftLevel - msg.rightLevel) / 7.0;        // Left/right turning
 
-    int leftWheelSpeed = (int)(7500 * fabs(leftWheelSpeedNormalized));
-    int rightWheelSpeed = (int)(7500 * fabs(rightWheelSpeedNormalized));
+  // Apply the neutral zone
+//  if (fabs(linearSpeed) < NEUTRAL_THRESHOLD) {
+//      linearSpeed = 0.0;
+//  }
+ // if (fabs(angularSpeed) < NEUTRAL_THRESHOLD) {
+//      angularSpeed = 0.0;
+//  }
 
-    if (leftWheelSpeedNormalized > 0) {
-        LEFT_FORWARD_CV = leftWheelSpeed;
-        LEFT_BACKWARD_CV = 0;
-    } else if (leftWheelSpeedNormalized < 0) {
-        LEFT_FORWARD_CV = 0;
-        LEFT_BACKWARD_CV = leftWheelSpeed;
-    } else {
-        LEFT_FORWARD_CV = 0;
-        LEFT_BACKWARD_CV = 0;
-    }
+  // Calculate normalized wheel speeds
+  float leftWheelSpeedNormalized = linearSpeed - angularSpeed;
+  float rightWheelSpeedNormalized = linearSpeed + angularSpeed;
 
-    if (rightWheelSpeedNormalized > 0) {
-        RIGHT_FORWARD_CV = rightWheelSpeed;
-        RIGHT_BACKWARD_CV = 0;
-    } else if (rightWheelSpeedNormalized < 0) {
-        RIGHT_FORWARD_CV = 0;
-        RIGHT_BACKWARD_CV = rightWheelSpeed;
-    } else {
-        RIGHT_FORWARD_CV = 0;
-        RIGHT_BACKWARD_CV = 0;
-    }
+  // Scale normalized speeds to motor PWM range with non-linear scaling
+   int leftWheelSpeed = leftWheelSpeedNormalized;//scale_speed(leftWheelSpeedNormalized);
+   int rightWheelSpeed = rightWheelSpeedNormalized;//scale_speed(rightWheelSpeedNormalized);
+  
+  // Set motor directions and speeds
+  if (leftWheelSpeedNormalized > 0) {
+      // Left wheel forward
+      // LEFT_FORWARD_CV = leftWheelSpeed;
+      // LEFT_BACKWARD_CV = 0;
+      LEFT_FORWARD_CV = 3499; // 50% duty cycle
+      LEFT_BACKWARD_CV = 0;
+  } else if (leftWheelSpeedNormalized < 0) {
+      // Left wheel backward
+      // LEFT_FORWARD_CV = 0;
+      // LEFT_BACKWARD_CV = leftWheelSpeed;
+      LEFT_FORWARD_CV = 0;
+      LEFT_BACKWARD_CV = 3499; // 50% duty cycle
+  } else {
+      // Left wheel stop
+      LEFT_FORWARD_CV = 0;
+      LEFT_BACKWARD_CV = 0;
+  }
+
+  if (rightWheelSpeedNormalized > 0) {
+      // Right wheel forward
+      // RIGHT_FORWARD_CV = rightWheelSpeed;
+      // RIGHT_BACKWARD_CV = 0;
+      RIGHT_FORWARD_CV = 3499; // 50% duty cycle
+      RIGHT_BACKWARD_CV = 0;
+  } else if (rightWheelSpeedNormalized < 0) {
+      // Right wheel backward
+      // RIGHT_FORWARD_CV = 0;
+      // RIGHT_BACKWARD_CV = rightWheelSpeed;
+      RIGHT_FORWARD_CV = 0;
+      RIGHT_BACKWARD_CV = 3499; // 50% duty cycle
+  } else {
+      // Right wheel stop
+      RIGHT_FORWARD_CV = 0;
+      RIGHT_BACKWARD_CV = 0;
+  }
 }
+
+
+
 
 // Decode function that returns a movementControlMessage
 struct movementControlMessage decode_motor_control(uint8_t data) {
@@ -87,7 +126,7 @@ struct movementControlMessage decode_motor_control(uint8_t data) {
     // Upper 4 bits (forward/backward)
     int forwardBackward = (int)(data >> 4);
     // Lower 4 bits (left/right)
-    int leftRight = (int)data & 0x0F;
+    int leftRight = (int)(data & 0x0F);
 
     // Forward/backward
     if (forwardBackward <= 7) {
@@ -118,6 +157,13 @@ struct movementControlMessage decode_motor_control(uint8_t data) {
         controlMessage.leftLevel  = 0;
         controlMessage.rightLevel = 0;
     }
+		
+		if (forwardBackward == 15) {
+			controlMessage.finish = true;
+		}
+		else {
+			controlMessage.finish = false;
+		}
 
     return controlMessage;
 }

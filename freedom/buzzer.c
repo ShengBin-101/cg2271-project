@@ -1,16 +1,12 @@
-#include "MKL25Z4.h"
 #include "buzzer.h"
-#include "cmsis_os2.h"
 
-#define BUZZER_PIN 0
-
-// Delay Function
-static void delay(volatile uint32_t nof) {
-	while(nof!=0) {
-		__asm("NOP");
-	nof--;
-	}
-}
+// "Mary Had a Little Lamb" melody
+const enum note_t melody[] = {
+	E6, D6, C6, D6, E6, E6, E6,
+	D6, D6, D6, E6, G6, G6,
+	E6, D6, C6, D6, E6, E6, E6, 
+	E6, D6, D6, E6, D6, C6
+};
 
 void initBuzzerPWM(void) {
 	// Enable clk to PORTB
@@ -73,17 +69,7 @@ void play_note(enum note_t note) {
 	osDelay(NOTE_T);
 	TPM1->MOD = 0;    // Silence between notes
 	osDelay(PAUSE_T);
-
-
 }
-
-// "Mary Had a Little Lamb" melody
-const enum note_t melody[] = {
-	E6, D6, C6, D6, E6, E6, E6,
-	D6, D6, D6, E6, G6, G6,
-	E6, D6, C6, D6, E6, E6, E6, 
-	E6, D6, D6, E6, D6, C6
-};
 
 void play_tune(const enum note_t *melody, int length) {
 	for (int i = 0; i < length; i++) {
@@ -92,8 +78,18 @@ void play_tune(const enum note_t *melody, int length) {
 }
 
 void tAudio(void *argument) {
-	while (1) {
-		play_tune(melody, sizeof(melody) / sizeof(melody[0]));
-		osDelay(END_T);  // Pause before repeating the song
+	for (;;){
+				// Wait for the thread flag to be set
+        osThreadFlagsWait(0x0001, osFlagsWaitAny, osWaitForever);
+
+        // Play the tune
+        play_tune(melody, sizeof(melody) / sizeof(melody[0]));
+				osDelay(END_T);
+    
 	}
+		
+		//while (1) {
+		//play_tune(melody, sizeof(melody) / sizeof(melody[0]));
+		//osDelay(END_T);  // Pause before repeating the song
+		//}
 }
