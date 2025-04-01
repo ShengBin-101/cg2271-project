@@ -1,0 +1,10 @@
+*
+
+!.gitignore
+
+!*.ino
+!*.c
+!*.h
+!esp32/
+!freedom/
+!README.md
