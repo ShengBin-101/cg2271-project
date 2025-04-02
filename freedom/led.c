@@ -58,7 +58,8 @@ void red_led_thread (void *argument) {
 		PTC->PSOR = PORTCState;
 		PTD->PSOR = MASK(RED_PIN3);
         osDelay(delayTiming);
-
+		osMessageQueueGet(red_led_message_queue, &isRunning, NULL, osWaitForever);
+		delayTiming = isRunning ? 500 : 250;
         //switch off led
         PTA->PCOR = PORTAState;
 		PTC->PCOR = PORTCState;
@@ -67,32 +68,33 @@ void red_led_thread (void *argument) {
 	}
 }
 
+
 void green_led_thread (void *argument) {
-    for (;;) {
+	int green_led_array[] = {GREEN_PIN1, GREEN_PIN2, GREEN_PIN3, GREEN_PIN4, GREEN_PIN5, GREEN_PIN6, GREEN_PIN7, GREEN_PIN8};
+	int green_led_index = 0;
+	int green_led_count = 8;
+	for (;;) {
         int isRunning;
         osMessageQueueGet(green_led_message_queue, &isRunning, NULL, osWaitForever);
+		
+		// Define the array of green LED pins and an index
 
-        if (isRunning) {
-            // Running Mode: Light up one LED at a time from one end to the other
-            int green_led_array[] = {GREEN_PIN1, GREEN_PIN2, GREEN_PIN3, GREEN_PIN4, GREEN_PIN5, GREEN_PIN6, GREEN_PIN7, GREEN_PIN8};
-            int num_leds = sizeof(green_led_array) / sizeof(green_led_array[0]);
+		if (isRunning) {
+			// Running Mode: off all LEDs except the current one
+			// Turn off all LEDs
+			PTC->PCOR = MASK(GREEN_PIN1) | MASK(GREEN_PIN2) | MASK(GREEN_PIN3) |
+								MASK(GREEN_PIN4) | MASK(GREEN_PIN5) | MASK(GREEN_PIN6) |
+								MASK(GREEN_PIN7) | MASK(GREEN_PIN8);
+			
+			// Turn on the current LED
+			uint32_t state = MASK(green_led_array[green_led_index]);
+			PTC->PSOR = state;
 
-            for (int i = 0; i < num_leds; i++) {
-                // Turn on the current LED
-                PTC->PSOR = MASK(green_led_array[i]);
+			// Increment the index and wrap around
+			green_led_index = (green_led_index + 1) % green_led_count;
 
-                // Turn off the previous LED (if not the first LED)
-                if (i > 0) {
-                    PTC->PCOR = MASK(green_led_array[i - 1]);
-                }
-
-                // Delay to create the running effect
-                osDelay(200);
-            }
-
-            // Turn off the last LED after the loop
-            PTC->PCOR = MASK(green_led_array[num_leds - 1]);
-        } else {
+			osDelay(250); // Add a delay for visibility
+		} else {
             // Static Mode: Turn on all LEDs
             uint32_t state = MASK(GREEN_PIN1) | MASK(GREEN_PIN2) | MASK(GREEN_PIN3) |
                              MASK(GREEN_PIN4) | MASK(GREEN_PIN5) | MASK(GREEN_PIN6) |

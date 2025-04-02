@@ -77,7 +77,7 @@ void tMotor(void *argument) {
 
 // ---------------------------  tBrain ----------------------------
 
-int isRunning=0;
+int isRunning = 0;
 
 void tBrain(void *argument) {
 	
@@ -98,6 +98,7 @@ void tUART(void *argument) {
 
 		if (!endRun){
 			  // Dequeue all bytes that have arrived
+			osThreadFlagsSet(play_buzzer_Id, 0x0001);
 			while (!Q_Empty(&rx_q)) {
 				uint8_t data = Q_Dequeue(&rx_q);
 
@@ -110,11 +111,14 @@ void tUART(void *argument) {
 					isRunning = 0;
 				}
 				if (cmd.finish) {
-					osThreadFlagsSet(play_buzzer_Id, 0x0001);	
+					endRun = true;	
 				}
 				// Send the command to the Motor thread
 				osMessageQueuePut(motorCommandQueue, &cmd, 0, 0);
 			}
+		}
+		else{
+			osThreadFlagsSet(play_buzzer_Id, 0x0002);
 		}
     }
 }				
@@ -129,10 +133,10 @@ static void delay(volatile uint32_t nof) {
 int main(void) {
     // System + Peripheral Init
     SystemCoreClockUpdate();
-	initLED();
+		initLED();
     initMotorPWM();
     initUART2(BAUD_RATE);
-	initBuzzerPWM();
+		initBuzzerPWM();
 		
     // RTOS Init
     osKernelInitialize();
@@ -150,14 +154,15 @@ int main(void) {
     );
 	
     // Create threads
-    osThreadNew(tUART,  NULL, NULL); 	// The UART thread (which receives + decodes bytes)
-    osThreadNew(tMotor, NULL, NULL); 	// The Motor thread (which applies the commands)
+  osThreadNew(tUART,  NULL, NULL); 	// The UART thread (which receives + decodes bytes)
+  osThreadNew(tMotor, NULL, NULL); 	// The Motor thread (which applies the commands)
 	osThreadNew(tBrain, NULL, NULL);	// The Brain thread (which determines the state of the robot)
 	osThreadNew(green_led_thread, NULL, NULL);
 	osThreadNew(red_led_thread, NULL, NULL);
 
-	play_buzzer_Id = osThreadNew(tAudio, NULL, NULL);
-				
+	play_buzzer_Id = osThreadNew(tAudio, &endRun, NULL);
+
+	
     // Start the RTOS scheduler
     osKernelStart();
 	// We should never get here as control is now taken by the scheduler

@@ -3,16 +3,18 @@
 // "Tune 1" melody (when endRun is false)
 // "Mary Had a Little Lamb" melody
 const enum note_t melody1[] = {
+	G6,G6,G6,G6,G6,G6,G6, REST
+};
+	/*
 	E6, D6, C6, D6, E6, E6, E6,
 	D6, D6, D6, E6, G6, G6,
 	E6, D6, C6, D6, E6, E6, E6, 
-	E6, D6, D6, E6, D6, C6
-};
+	E6, D6, D6, E6, D6, C6, REST
+};*/
 
 // "Tune 2" melody (when endRun is true)
 const enum note_t melody2[] = {
-    G6, F6, E6, F6, G6, G6, G6,
-    F6, F6, F6, G6, A6, A6
+    C6,C6,C6,C6,C6,C6, REST
 };
 
 void initBuzzerPWM(void) {
@@ -78,31 +80,32 @@ void play_note(enum note_t note) {
 	osDelay(PAUSE_T);
 }
 
+uint32_t flags = 0; // Initialize flags variable
+
 void play_tune(const enum note_t *melody, int length) {
+	uint32_t prev_flag = osThreadFlagsWait(0x0001 | 0x0002, osFlagsWaitAny, osWaitForever);
 	for (int i = 0; i < length; i++) {
 		play_note(melody[i]);
+		if(prev_flag != osThreadFlagsWait(0x0001 | 0x0002, osFlagsWaitAny, osWaitForever))
+			break;
+
 	}
 }
 
 void tAudio(void *argument) {
 	for (;;){
 				// Wait for the thread flag to be set
-        osThreadFlagsWait(0x0001, osFlagsWaitAny, osWaitForever);
+    uint32_t flags = osThreadFlagsWait(0x0001 | 0x0002, osFlagsWaitAny, osWaitForever);
 
 		// Play the appropriate tune based on the value of endRun
-		if (endRun) {
+		if (flags & 0x0001) {
 			play_tune(melody2, sizeof(melody2) / sizeof(melody2[0])); // Play Tune 2
 		} else {
 			play_tune(melody1, sizeof(melody1) / sizeof(melody1[0])); // Play Tune 1
 		}
         // // Play the tune
         // play_tune(melody, sizeof(melody) / sizeof(melody[0]));
-		osDelay(END_T);
+//		osDelay(END_T);
     
 	}
-		
-		//while (1) {
-		//play_tune(melody, sizeof(melody) / sizeof(melody[0]));
-		//osDelay(END_T);  // Pause before repeating the song
-		//}
 }

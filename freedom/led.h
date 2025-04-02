@@ -4,6 +4,7 @@
 #include "RTE_Components.h"
 #include  CMSIS_device_header
 #include "cmsis_os2.h"
+#include <stdbool.h>
 
 #define RED_PIN1 1 //PTA1
 #define RED_PIN2 2 //PTA2
