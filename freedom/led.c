@@ -69,22 +69,37 @@ void red_led_thread (void *argument) {
 
 void green_led_thread (void *argument) {
     for (;;) {
-		int isRunning;
-		osMessageQueueGet(green_led_message_queue, &isRunning, NULL, osWaitForever);
-		if (isRunning) {
-			int green_led_array[] = {GREEN_PIN1, GREEN_PIN2, GREEN_PIN3, GREEN_PIN4, GREEN_PIN5, GREEN_PIN6, GREEN_PIN7, GREEN_PIN8};
-			for (int i = 0; i < sizeof(green_led_array) / sizeof(green_led_array[0]); i++) {
-                int onPin = green_led_array[i];
-                PTC->PSOR = MASK(onPin);
-                int offPin = i == 0 ? green_led_array[7] : green_led_array[i - 1];
-                PTC->PCOR = MASK(offPin);
-                osDelay(500);
+        int isRunning;
+        osMessageQueueGet(green_led_message_queue, &isRunning, NULL, osWaitForever);
+
+        if (isRunning) {
+            // Running Mode: Light up one LED at a time from one end to the other
+            int green_led_array[] = {GREEN_PIN1, GREEN_PIN2, GREEN_PIN3, GREEN_PIN4, GREEN_PIN5, GREEN_PIN6, GREEN_PIN7, GREEN_PIN8};
+            int num_leds = sizeof(green_led_array) / sizeof(green_led_array[0]);
+
+            for (int i = 0; i < num_leds; i++) {
+                // Turn on the current LED
+                PTC->PSOR = MASK(green_led_array[i]);
+
+                // Turn off the previous LED (if not the first LED)
+                if (i > 0) {
+                    PTC->PCOR = MASK(green_led_array[i - 1]);
+                }
+
+                // Delay to create the running effect
+                osDelay(200);
             }
-		} else {
-			uint32_t state = MASK(GREEN_PIN1) | MASK(GREEN_PIN2) | MASK(GREEN_PIN3)| MASK(GREEN_PIN4) | MASK(GREEN_PIN5) | MASK(GREEN_PIN6) | MASK(GREEN_PIN7) | MASK(GREEN_PIN8);
-			PTC->PSOR = state;
-		}
-	}
+
+            // Turn off the last LED after the loop
+            PTC->PCOR = MASK(green_led_array[num_leds - 1]);
+        } else {
+            // Static Mode: Turn on all LEDs
+            uint32_t state = MASK(GREEN_PIN1) | MASK(GREEN_PIN2) | MASK(GREEN_PIN3) |
+                             MASK(GREEN_PIN4) | MASK(GREEN_PIN5) | MASK(GREEN_PIN6) |
+                             MASK(GREEN_PIN7) | MASK(GREEN_PIN8);
+            PTC->PSOR = state;
+        }
+    }
 }
 
 void control_thread (void *argument) {

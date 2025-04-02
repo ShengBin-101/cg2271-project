@@ -55,65 +55,65 @@ void initMotorPWM(void) {
 }
 
 void movement_master_control(struct movementControlMessage msg) {
-  // Define a neutral zone threshold
-  const float NEUTRAL_THRESHOLD = 0.1;
+    // Define a neutral zone threshold
+    const float NEUTRAL_THRESHOLD = 0.1;
 
-  // Normalize input levels to range -1.0 to 1.0
-  float linearSpeed = (msg.forwardLevel - msg.backwardLevel) / 7.0;   // Forward/backward motion     
-  float angularSpeed = (msg.leftLevel - msg.rightLevel) / 7.0;        // Left/right turning
+    // Normalize input levels to range -1.0 to 1.0
+    float linearSpeed = (msg.forwardLevel - msg.backwardLevel) / 7.0;   // Forward/backward motion     
+    float angularSpeed = (msg.leftLevel - msg.rightLevel) / 7.0;        // Left/right turning
 
-  // Apply the neutral zone
-//  if (fabs(linearSpeed) < NEUTRAL_THRESHOLD) {
-//      linearSpeed = 0.0;
-//  }
- // if (fabs(angularSpeed) < NEUTRAL_THRESHOLD) {
-//      angularSpeed = 0.0;
-//  }
+    // Apply the neutral zone
+        if (fabs(linearSpeed) < NEUTRAL_THRESHOLD) {
+            linearSpeed = 0.0;
+        }
+        if (fabs(angularSpeed) < NEUTRAL_THRESHOLD) {
+            angularSpeed = 0.0;
+        }
 
-  // Calculate normalized wheel speeds
-  float leftWheelSpeedNormalized = linearSpeed - angularSpeed;
-  float rightWheelSpeedNormalized = linearSpeed + angularSpeed;
+    // Calculate normalized wheel speeds
+    float leftWheelSpeedNormalized = linearSpeed - angularSpeed;
+    float rightWheelSpeedNormalized = linearSpeed + angularSpeed;
 
-  // Scale normalized speeds to motor PWM range with non-linear scaling
-   int leftWheelSpeed = leftWheelSpeedNormalized;//scale_speed(leftWheelSpeedNormalized);
-   int rightWheelSpeed = rightWheelSpeedNormalized;//scale_speed(rightWheelSpeedNormalized);
-  
-  // Set motor directions and speeds
-  if (leftWheelSpeedNormalized > 0) {
-      // Left wheel forward
-      // LEFT_FORWARD_CV = leftWheelSpeed;
-      // LEFT_BACKWARD_CV = 0;
-      LEFT_FORWARD_CV = 3499; // 50% duty cycle
-      LEFT_BACKWARD_CV = 0;
-  } else if (leftWheelSpeedNormalized < 0) {
-      // Left wheel backward
-      // LEFT_FORWARD_CV = 0;
-      // LEFT_BACKWARD_CV = leftWheelSpeed;
-      LEFT_FORWARD_CV = 0;
-      LEFT_BACKWARD_CV = 3499; // 50% duty cycle
-  } else {
-      // Left wheel stop
-      LEFT_FORWARD_CV = 0;
-      LEFT_BACKWARD_CV = 0;
-  }
+    // Scale normalized speeds to motor PWM range with non-linear scaling
+    int leftWheelSpeed = leftWheelSpeedNormalized;//scale_speed(leftWheelSpeedNormalized);
+    int rightWheelSpeed = rightWheelSpeedNormalized;//scale_speed(rightWheelSpeedNormalized);
+    
+    // Set motor directions and speeds
+    if (leftWheelSpeedNormalized > 0) {
+        // Left wheel forward
+        // LEFT_FORWARD_CV = leftWheelSpeed;
+        // LEFT_BACKWARD_CV = 0;
+        LEFT_FORWARD_CV = leftWheelSpeedNormalized*MAX_SPEED; // 50% duty cycle
+        LEFT_BACKWARD_CV = 0;
+    } else if (leftWheelSpeedNormalized < 0) {
+        // Left wheel backward
+        // LEFT_FORWARD_CV = 0;
+        // LEFT_BACKWARD_CV = leftWheelSpeed;
+        LEFT_FORWARD_CV = 0;
+        LEFT_BACKWARD_CV = (-leftWheelSpeedNormalized)*MAX_SPEED; // 50% duty cycle
+    } else {
+        // Left wheel stop
+        LEFT_FORWARD_CV = 0;
+        LEFT_BACKWARD_CV = 0;
+    }
 
-  if (rightWheelSpeedNormalized > 0) {
-      // Right wheel forward
-      // RIGHT_FORWARD_CV = rightWheelSpeed;
-      // RIGHT_BACKWARD_CV = 0;
-      RIGHT_FORWARD_CV = 3499; // 50% duty cycle
-      RIGHT_BACKWARD_CV = 0;
-  } else if (rightWheelSpeedNormalized < 0) {
-      // Right wheel backward
-      // RIGHT_FORWARD_CV = 0;
-      // RIGHT_BACKWARD_CV = rightWheelSpeed;
-      RIGHT_FORWARD_CV = 0;
-      RIGHT_BACKWARD_CV = 3499; // 50% duty cycle
-  } else {
-      // Right wheel stop
-      RIGHT_FORWARD_CV = 0;
-      RIGHT_BACKWARD_CV = 0;
-  }
+    if (rightWheelSpeedNormalized > 0) {
+        // Right wheel forward
+        // RIGHT_FORWARD_CV = rightWheelSpeed;
+        // RIGHT_BACKWARD_CV = 0;
+        RIGHT_FORWARD_CV = rightWheelSpeedNormalized*MAX_SPEED; // 50% duty cycle
+        RIGHT_BACKWARD_CV = 0;
+    } else if (rightWheelSpeedNormalized < 0) {
+        // Right wheel backward
+        // RIGHT_FORWARD_CV = 0;
+        // RIGHT_BACKWARD_CV = rightWheelSpeed;
+        RIGHT_FORWARD_CV = 0;
+        RIGHT_BACKWARD_CV = (-rightWheelSpeedNormalized)*MAX_SPEED; // 50% duty cycle
+    } else {
+        // Right wheel stop
+        RIGHT_FORWARD_CV = 0;
+        RIGHT_BACKWARD_CV = 0;
+    }
 }
 
 
@@ -130,11 +130,11 @@ struct movementControlMessage decode_motor_control(uint8_t data) {
 
     // Forward/backward
     if (forwardBackward <= 7) {
-        // 0000–0111 => backward
+        // 0000ï¿½0111 => backward
         controlMessage.forwardLevel  = 0;
         controlMessage.backwardLevel = 7 - forwardBackward;
     } else if (forwardBackward >= 8 && forwardBackward <= 14) {
-        // 1000–1110 => forward
+        // 1000ï¿½1110 => forward
         controlMessage.forwardLevel  = forwardBackward - 8;
         controlMessage.backwardLevel = 0;
     } else {
@@ -145,11 +145,11 @@ struct movementControlMessage decode_motor_control(uint8_t data) {
 
     // Left/right
     if (leftRight <= 7) {
-        // 0000–0111 => left
+        // 0000ï¿½0111 => left
         controlMessage.leftLevel  = 7 - leftRight;
         controlMessage.rightLevel = 0;
     } else if (leftRight >= 8 && leftRight <= 14) {
-        // 1000–1110 => right
+        // 1000ï¿½1110 => right
         controlMessage.rightLevel = leftRight - 8;
         controlMessage.leftLevel  = 0;
     } else {

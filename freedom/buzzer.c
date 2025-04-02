@@ -1,11 +1,18 @@
 #include "buzzer.h"
 
+// "Tune 1" melody (when endRun is false)
 // "Mary Had a Little Lamb" melody
-const enum note_t melody[] = {
+const enum note_t melody1[] = {
 	E6, D6, C6, D6, E6, E6, E6,
 	D6, D6, D6, E6, G6, G6,
 	E6, D6, C6, D6, E6, E6, E6, 
 	E6, D6, D6, E6, D6, C6
+};
+
+// "Tune 2" melody (when endRun is true)
+const enum note_t melody2[] = {
+    G6, F6, E6, F6, G6, G6, G6,
+    F6, F6, F6, G6, A6, A6
 };
 
 void initBuzzerPWM(void) {
@@ -82,9 +89,15 @@ void tAudio(void *argument) {
 				// Wait for the thread flag to be set
         osThreadFlagsWait(0x0001, osFlagsWaitAny, osWaitForever);
 
-        // Play the tune
-        play_tune(melody, sizeof(melody) / sizeof(melody[0]));
-				osDelay(END_T);
+		// Play the appropriate tune based on the value of endRun
+		if (endRun) {
+			play_tune(melody2, sizeof(melody2) / sizeof(melody2[0])); // Play Tune 2
+		} else {
+			play_tune(melody1, sizeof(melody1) / sizeof(melody1[0])); // Play Tune 1
+		}
+        // // Play the tune
+        // play_tune(melody, sizeof(melody) / sizeof(melody[0]));
+		osDelay(END_T);
     
 	}
 		

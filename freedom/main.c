@@ -59,30 +59,6 @@ osThreadId_t play_buzzer_Id;
 
 bool endRun = false;
 
-
-/*
-#include <stdbool.h>
-#define RED_LED 18  //PortB Pin 18
-#define MASK(x) (1 << (x))
- 
-void Red(bool on){
-	if(on)
-		PTB->PCOR = MASK(RED_LED);
-	else
-		PTB->PSOR = MASK(RED_LED);
-}
- void InitGPIO(void){
-	// Enable Clock to PORTB
-	SIM->SCGC5 |= (SIM_SCGC5_PORTB_MASK);
-	
-	// Configure MUX settings to make all 3 pins GPIO
-	PORTB->PCR[RED_LED] &= ~PORT_PCR_MUX_MASK;
-	PORTB->PCR[RED_LED] |= PORT_PCR_MUX(1);
-
-	// Set Data Direction Registers for PortB and PortD
-	PTB->PDDR |= MASK(RED_LED);
-}
-*/
 // --------------------------- Motor Thread ---------------------------
 // This thread waits for new motor commands and applies them
 
@@ -94,7 +70,6 @@ void tMotor(void *argument) {
         if (status == osOK) {
             // Apply the new motor command
             movement_master_control(cmd);
-						//Red(1);
         }
         // else handle errors if needed
     }
@@ -107,14 +82,9 @@ int isRunning=0;
 void tBrain(void *argument) {
 	
 	for (;;){
-	
 		osMessageQueuePut(red_led_message_queue, &isRunning, NULL, 0);
 		osMessageQueuePut(green_led_message_queue, &isRunning, NULL, 0);
-
 	}
-	
-	
-	
 }
 
 // --------------------------- UART Thread ----------------------------
@@ -126,33 +96,26 @@ void tUART(void *argument) {
         // Block until at least one byte arrives
         osSemaphoreAcquire(sem_uartRx, osWaitForever);
 
-			if (!endRun){
+		if (!endRun){
 			  // Dequeue all bytes that have arrived
-        while (!Q_Empty(&rx_q)) {
-            uint8_t data = Q_Dequeue(&rx_q);
+			while (!Q_Empty(&rx_q)) {
+				uint8_t data = Q_Dequeue(&rx_q);
 
-          // Convert the single byte into a motor command
-          struct movementControlMessage cmd = decode_motor_control(data);
-
-
-					if (cmd.forwardLevel>0 || cmd.backwardLevel>0 || cmd.leftLevel>0 || cmd.rightLevel>0){
-						isRunning = 1;
-						}
-					else {
-						isRunning = 0;
+				// Convert the single byte into a motor command
+				struct movementControlMessage cmd = decode_motor_control(data);
+				if (cmd.forwardLevel>0 || cmd.backwardLevel>0 || cmd.leftLevel>0 || cmd.rightLevel>0){
+					isRunning = 1;
 					}
-					
-					if (cmd.finish) {
-						osThreadFlagsSet(play_buzzer_Id, 0x0001);
-						
-					}
-					
-						
-						//movement_master_control(cmd);
-            // Send the command to the Motor thread
-            osMessageQueuePut(motorCommandQueue, &cmd, 0, 0);
-        }
+				else {
+					isRunning = 0;
+				}
+				if (cmd.finish) {
+					osThreadFlagsSet(play_buzzer_Id, 0x0001);	
+				}
+				// Send the command to the Motor thread
+				osMessageQueuePut(motorCommandQueue, &cmd, 0, 0);
 			}
+		}
     }
 }				
 
@@ -166,13 +129,11 @@ static void delay(volatile uint32_t nof) {
 int main(void) {
     // System + Peripheral Init
     SystemCoreClockUpdate();
-		//InitGPIO();
-		initLED();
+	initLED();
     initMotorPWM();
     initUART2(BAUD_RATE);
-		initBuzzerPWM();
+	initBuzzerPWM();
 		
-	  
     // RTOS Init
     osKernelInitialize();
 
@@ -189,44 +150,16 @@ int main(void) {
     );
 	
     // Create threads
-    osThreadNew(tUART,  NULL, NULL); // The UART thread (which receives + decodes bytes)
-    osThreadNew(tMotor, NULL, NULL); // The Motor thread (which applies the commands)
-	
-				
-		osThreadNew(tBrain, NULL, NULL);
-		osThreadNew(green_led_thread, NULL, NULL);
-		osThreadNew(red_led_thread, NULL, NULL);
+    osThreadNew(tUART,  NULL, NULL); 	// The UART thread (which receives + decodes bytes)
+    osThreadNew(tMotor, NULL, NULL); 	// The Motor thread (which applies the commands)
+	osThreadNew(tBrain, NULL, NULL);	// The Brain thread (which determines the state of the robot)
+	osThreadNew(green_led_thread, NULL, NULL);
+	osThreadNew(red_led_thread, NULL, NULL);
 
-		play_buzzer_Id = osThreadNew(tAudio, NULL, NULL);
+	play_buzzer_Id = osThreadNew(tAudio, NULL, NULL);
 				
     // Start the RTOS scheduler
     osKernelStart();
-
-
-		for (;;) {
-		}
-
-		/*
-    for (;;) {
-		
-			// Test forward movement
-			movement_master_control(forward);
-			delay(2000000); // Turn Left 
-			// Test backward movement
-			movement_master_control(backward);
-			delay(2000000); // Turn Right 
-
-			// Test left turn
-			movement_master_control(left);
-			delay(2000000); // Turn Left 
-			// Test right turn
-			movement_master_control(right);
-			delay(2000000); // Turn Right 
-			// Stop the motors
-			movement_master_control(idle);
-			delay(2000000); 
-			
-		
-		} // Should never reach here
-		*/
+	// We should never get here as control is now taken by the scheduler
+	for (;;) {}
 }
