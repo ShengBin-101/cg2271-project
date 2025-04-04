@@ -32,7 +32,7 @@ void initMotorPWM(void) {
 		SIM->SOPT2 &= ~SIM_SOPT2_TPMSRC_MASK;
     SIM->SOPT2 |= SIM_SOPT2_TPMSRC(1);
 	  
-    TPM0->MOD = 7500;
+    TPM0->MOD = 6000;
     
 	  TPM0->SC |= (TPM_SC_CMOD(1) | TPM_SC_PS(7));
 	  TPM0->SC &= ~(TPM_SC_CPWMS_MASK);
@@ -74,7 +74,7 @@ void movement_master_control(struct movementControlMessage msg) {
     }
 
     // Reduce steering sensitivity
-    angularSpeed *= STEERING_SENSITIVITY;
+    //angularSpeed *= STEERING_SENSITIVITY;
 
     // Calculate normalized wheel speeds
     float leftWheelSpeedNormalized = linearSpeed - angularSpeed;

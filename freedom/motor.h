@@ -5,7 +5,7 @@
 #include <stdbool.h>
 
 #define MIN_SPEED 1500
-#define MAX_SPEED 6750
+#define MAX_SPEED 5800
 
 // Motor pin assignments
 #define LEFT_FORWARD 1 		// 	TPM0_C0 - PD0: Connects to left motor driver (A1 & B1)
