@@ -15,7 +15,7 @@ enum note_t {
   C6, Db6, D6, Eb6, E6, F6, Gb6, G6, Ab6, A6, Bb6, B6,  // Octave 6
   REST
 };
-
+	
 #define NOTE_T 500
 #define PAUSE_T 50
 #define END_T 1000
