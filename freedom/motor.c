@@ -66,7 +66,7 @@ void movement_master_control(struct movementControlMessage msg) {
     float angularSpeed = (msg.leftLevel - msg.rightLevel) / 7.0;        // Left/right turning
 
 		if (linearSpeed == 0) {
-			STEERING_SENSITIVITY = 0.5;
+			STEERING_SENSITIVITY = 0.4; //0.5 used at makers lab on 8 april 
 		}
 	
     // Apply the neutral zone
@@ -81,8 +81,8 @@ void movement_master_control(struct movementControlMessage msg) {
     angularSpeed *= STEERING_SENSITIVITY;
 
     // Calculate normalized wheel speeds
-    float leftWheelSpeedNormalized = linearSpeed - angularSpeed;
-    float rightWheelSpeedNormalized = linearSpeed + angularSpeed;
+    float leftWheelSpeedNormalized = (linearSpeed - angularSpeed);
+    float rightWheelSpeedNormalized = (linearSpeed + angularSpeed);
 
     // Scale normalized speeds to motor PWM range
     int leftWheelSpeed = leftWheelSpeedNormalized * MAX_SPEED;
@@ -91,12 +91,12 @@ void movement_master_control(struct movementControlMessage msg) {
     // Set motor directions and speeds
     if (leftWheelSpeedNormalized > 0) {
         // Left wheel forward
-        LEFT_FORWARD_CV = leftWheelSpeed;
+        LEFT_FORWARD_CV = leftWheelSpeed + LEFT_BIAS;
         LEFT_BACKWARD_CV = 0;
     } else if (leftWheelSpeedNormalized < 0) {
         // Left wheel backward
         LEFT_FORWARD_CV = 0;
-        LEFT_BACKWARD_CV = -leftWheelSpeed;
+        LEFT_BACKWARD_CV = -leftWheelSpeed - LEFT_BIAS;
     } else {
         // Left wheel stop
         LEFT_FORWARD_CV = 0;
@@ -105,12 +105,12 @@ void movement_master_control(struct movementControlMessage msg) {
 
     if (rightWheelSpeedNormalized > 0) {
         // Right wheel forward
-        RIGHT_FORWARD_CV = rightWheelSpeed;
+        RIGHT_FORWARD_CV = rightWheelSpeed + RIGHT_BIAS;
         RIGHT_BACKWARD_CV = 0;
     } else if (rightWheelSpeedNormalized < 0) {
         // Right wheel backward
         RIGHT_FORWARD_CV = 0;
-        RIGHT_BACKWARD_CV = -rightWheelSpeed;
+        RIGHT_BACKWARD_CV = -rightWheelSpeed - RIGHT_BIAS;
     } else {
         // Right wheel stop
         RIGHT_FORWARD_CV = 0;
