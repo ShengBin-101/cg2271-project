@@ -32,7 +32,7 @@ void initMotorPWM(void) {
 		SIM->SOPT2 &= ~SIM_SOPT2_TPMSRC_MASK;
     SIM->SOPT2 |= SIM_SOPT2_TPMSRC(1);
 	  
-    TPM0->MOD = 6000;
+    TPM0->MOD = 6000; //7500 50Hz
     
 	  TPM0->SC |= (TPM_SC_CMOD(1) | TPM_SC_PS(7));
 	  TPM0->SC &= ~(TPM_SC_CPWMS_MASK);
@@ -59,12 +59,16 @@ void movement_master_control(struct movementControlMessage msg) {
     const float NEUTRAL_THRESHOLD = 0.1;
 
     // Define a scaling factor for steering sensitivity (lower = less sensitive)
-    const float STEERING_SENSITIVITY = 0.5; // Adjust this value (e.g., 0.5 = 50% sensitivity)
+    float STEERING_SENSITIVITY = 0.8; // Adjust this value (e.g., 0.5 = 50% sensitivity)
 
     // Normalize input levels to range -1.0 to 1.0
     float linearSpeed = (msg.forwardLevel - msg.backwardLevel) / 7.0;   // Forward/backward motion     
     float angularSpeed = (msg.leftLevel - msg.rightLevel) / 7.0;        // Left/right turning
 
+		if (linearSpeed == 0) {
+			STEERING_SENSITIVITY = 0.5;
+		}
+	
     // Apply the neutral zone
     if (fabs(linearSpeed) < NEUTRAL_THRESHOLD) {
         linearSpeed = 0.0;
@@ -74,7 +78,7 @@ void movement_master_control(struct movementControlMessage msg) {
     }
 
     // Reduce steering sensitivity
-    //angularSpeed *= STEERING_SENSITIVITY;
+    angularSpeed *= STEERING_SENSITIVITY;
 
     // Calculate normalized wheel speeds
     float leftWheelSpeedNormalized = linearSpeed - angularSpeed;
@@ -83,7 +87,7 @@ void movement_master_control(struct movementControlMessage msg) {
     // Scale normalized speeds to motor PWM range
     int leftWheelSpeed = leftWheelSpeedNormalized * MAX_SPEED;
     int rightWheelSpeed = rightWheelSpeedNormalized * MAX_SPEED;
-
+		
     // Set motor directions and speeds
     if (leftWheelSpeedNormalized > 0) {
         // Left wheel forward
