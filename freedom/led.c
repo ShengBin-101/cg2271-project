@@ -93,7 +93,7 @@ void green_led_thread (void *argument) {
 			// Increment the index and wrap around
 			green_led_index = (green_led_index + 1) % green_led_count;
 
-			osDelay(250); // Add a delay for visibility
+			osDelay(50); // Add a delay for visibility
 		} else {
             // Static Mode: Turn on all LEDs
             uint32_t state = MASK(GREEN_PIN1) | MASK(GREEN_PIN2) | MASK(GREEN_PIN3) |
