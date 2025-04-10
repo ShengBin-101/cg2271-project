@@ -8,7 +8,7 @@
 #define MAX_SPEED 5800
 
 #define LEFT_BIAS		20
-#define RIGHT_BIAS 	0
+#define RIGHT_BIAS 	10
 
 // Motor pin assignments
 #define LEFT_FORWARD 1 		// 	TPM0_C0 - PD0: Connects to left motor driver (A1 & B1)
