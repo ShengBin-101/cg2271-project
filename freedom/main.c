@@ -112,6 +112,7 @@ void tUART(void *argument) {
 					}
 					if (cmd.finish) {
 						endRun = true;	
+						movement_master_control(idle);		// LAST ADDED LINE
 					}
 					else {
 						// Send the command to the Motor thread
