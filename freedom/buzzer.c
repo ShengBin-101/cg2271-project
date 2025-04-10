@@ -162,7 +162,7 @@ void tAudio(void *argument) {
 				// Wait for the thread flag to be set
 		flags = osThreadFlagsWait(0x0001 | 0x0002, osFlagsWaitAny, osWaitForever);
 		// Play the appropriate tune based on the value of endRun
-		if (flags & 0x0001) {
+		if (flags == 0x0001) {
 			play_tune(melody1, sizeof(melody1) / sizeof(melody1[0])); // Play Tune 1
 		} else {
 			play_tune(melody2, sizeof(melody2) / sizeof(melody2[0])); // Play Tune 2

@@ -52,12 +52,11 @@
 
 // A message queue handle for motor commands
 osMessageQueueId_t motorCommandQueue;
-
 osMessageQueueId_t red_led_message_queue, green_led_message_queue;
 
 osThreadId_t play_buzzer_Id;
 
-bool endRun = false;
+volatile bool endRun = false;
 
 // --------------------------- Motor Thread ---------------------------
 // This thread waits for new motor commands and applies them
@@ -94,34 +93,67 @@ void tBrain(void *argument) {
 void tUART(void *argument) {
     for (;;) {
         // Block until at least one byte arrives
-        osSemaphoreAcquire(sem_uartRx, osWaitForever);
+
 
 		if (!endRun){
-			  // Dequeue all bytes that have arrived
+      osSemaphoreAcquire(sem_uartRx, osWaitForever);
+			// Dequeue all bytes that have arrived
 			osThreadFlagsSet(play_buzzer_Id, 0x0001);
 			while (!Q_Empty(&rx_q)) {
-				uint8_t data = Q_Dequeue(&rx_q);
+					uint8_t data = Q_Dequeue(&rx_q);
 
-				// Convert the single byte into a motor command
-				struct movementControlMessage cmd = decode_motor_control(data);
-				if (cmd.forwardLevel>0 || cmd.backwardLevel>0 || cmd.leftLevel>0 || cmd.rightLevel>0){
-					isRunning = 1;
+					// Convert the single byte into a motor command
+					struct movementControlMessage cmd = decode_motor_control(data);
+					if (cmd.forwardLevel>0 || cmd.backwardLevel>0 || cmd.leftLevel>0 || cmd.rightLevel>0){
+						isRunning = 1;
+						}
+					else {
+						isRunning = 0;
 					}
-				else {
-					isRunning = 0;
+					if (cmd.finish) {
+						endRun = true;	
+					}
+					else {
+						// Send the command to the Motor thread
+						osMessageQueuePut(motorCommandQueue, &cmd, 0, 0);
+
+					}
 				}
-				if (cmd.finish) {
-					endRun = true;	
-				}
-				// Send the command to the Motor thread
-				osMessageQueuePut(motorCommandQueue, &cmd, 0, 0);
 			}
-		}
-		else{
-			osThreadFlagsSet(play_buzzer_Id, 0x0002);
-		}
+			else{
+				osThreadFlagsSet(play_buzzer_Id, 0x0002);
+			}
     }
 }				
+
+void UART2_IRQHandler(void) {
+    // Check if endRun is true
+    if (endRun) {
+        // Disable UART RX interrupt
+        UART2->C2 &= ~UART_C2_RIE_MASK;
+        return; // Exit the interrupt handler
+    }
+
+    NVIC_ClearPendingIRQ(UART2_IRQn); // Clear pending interrupt
+
+    // RX interrupt - data received
+    if (UART2->S1 & UART_S1_RDRF_MASK) {
+        if (!Q_Full(&rx_q)) {
+            Q_Enqueue(&rx_q, UART2->D); // Read received byte into queue
+            osSemaphoreRelease(sem_uartRx); // Signal semaphore for new data
+        } else {
+            while (1); // RX queue overflow - halt (can be replaced with error handling)
+        }
+    }
+
+    // Handle UART errors: overrun, noise, framing, or parity errors
+    if (UART2->S1 & (UART_S1_OR_MASK | UART_S1_NF_MASK | 
+                     UART_S1_FE_MASK | UART_S1_PF_MASK)) {
+        // Just clear the flags by reading S1 and D (data)
+        (void)UART2->D;
+    }
+}
+
 
 static void delay(volatile uint32_t nof) {
     while(nof != 0) {
@@ -160,7 +192,7 @@ int main(void) {
 	osThreadNew(green_led_thread, NULL, NULL);
 	osThreadNew(red_led_thread, NULL, NULL);
 
-	play_buzzer_Id = osThreadNew(tAudio, &endRun, NULL);
+	play_buzzer_Id = osThreadNew(tAudio, NULL, NULL);
 
 	
     // Start the RTOS scheduler

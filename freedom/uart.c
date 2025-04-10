@@ -48,37 +48,37 @@ unsigned char Q_Dequeue(Q_T *q) {
     return t;
 }
 
-// Interrupt handler for UART2 - handles both RX and TX
-void UART2_IRQHandler(void) {
-    NVIC_ClearPendingIRQ(UART2_IRQn); // Clear pending interrupt
+// // Interrupt handler for UART2 - handles both RX and TX
+// void UART2_IRQHandler(void) {
+//     NVIC_ClearPendingIRQ(UART2_IRQn); // Clear pending interrupt
 
-    // TX interrupt - ready to transmit
-    /* if (UART2->S1 & UART_S1_TDRE_MASK) {
-        if (!Q_Empty(&tx_q)) {
-            UART2->D = Q_Dequeue(&tx_q); // Send data from queue
-        } else {
-            UART2->C2 &= ~UART_C2_TIE_MASK; // Disable TX interrupt if queue is empty
-        }
-    } */
+//     // TX interrupt - ready to transmit
+//     /* if (UART2->S1 & UART_S1_TDRE_MASK) {
+//         if (!Q_Empty(&tx_q)) {
+//             UART2->D = Q_Dequeue(&tx_q); // Send data from queue
+//         } else {
+//             UART2->C2 &= ~UART_C2_TIE_MASK; // Disable TX interrupt if queue is empty
+//         }
+//     } */
 
-    // RX interrupt - data received
-    if (UART2->S1 & UART_S1_RDRF_MASK) {
-        if (!Q_Full(&rx_q)) {
-            Q_Enqueue(&rx_q, UART2->D); // Read received byte into queue
+//     // RX interrupt - data received
+//     if (UART2->S1 & UART_S1_RDRF_MASK) {
+//         if (!Q_Full(&rx_q)) {
+//             Q_Enqueue(&rx_q, UART2->D); // Read received byte into queue
 		
-            osSemaphoreRelease(sem_uartRx); // Signal semaphore for new data
-        } else {
-            while (1); // RX queue overflow - halt (can be replaced with error handling)
-        }
-    }
+//             osSemaphoreRelease(sem_uartRx); // Signal semaphore for new data
+//         } else {
+//             while (1); // RX queue overflow - halt (can be replaced with error handling)
+//         }
+//     }
 
-    // Handle UART errors: overrun, noise, framing, or parity errors
-    if (UART2->S1 & (UART_S1_OR_MASK | UART_S1_NF_MASK | 
-                     UART_S1_FE_MASK | UART_S1_PF_MASK)) {
-        // Just clear the flags by reading S1 and D (data)
-        //(void)UART2->D;
-    }
-}
+//     // Handle UART errors: overrun, noise, framing, or parity errors
+//     if (UART2->S1 & (UART_S1_OR_MASK | UART_S1_NF_MASK | 
+//                      UART_S1_FE_MASK | UART_S1_PF_MASK)) {
+//         // Just clear the flags by reading S1 and D (data)
+//         //(void)UART2->D;
+//     }
+// }
 
 // Initialize UART2 with specified baud rate
 void initUART2(uint32_t baud_rate) {
