@@ -1,171 +1,99 @@
+// motor.c
+// Implements PWM setup and motor‑control logic.
+
 #include "MKL25Z4.h"
 #include "motor.h"
-#include <math.h> 
+#include <math.h>
 
-struct movementControlMessage idle = {0, 0, 0, 0};
-struct movementControlMessage forward = {7, 0, 0, 0};
-struct movementControlMessage backward = {0, 7, 0, 0};
-struct movementControlMessage left = {0, 0, 7, 0};
-struct movementControlMessage right = {0, 0, 0, 7};
+// Predefined command messages
+struct movementControlMessage idle     = {0,0,0,0};
+struct movementControlMessage forward  = {7,0,0,0};
+struct movementControlMessage backward = {0,7,0,0};
+struct movementControlMessage left     = {0,0,7,0};
+struct movementControlMessage right    = {0,0,0,7};
 
+// Initialize TPM0 channels for four‑way PWM motor outputs
 void initMotorPWM(void) {
-    //init 2 pins, 1 for forward, 1 for backward
-    //__disable_irq();
+    // Enable PORTD and TPM0 clocks
     SIM_SCGC5 |= SIM_SCGC5_PORTD_MASK;
-
-    //left
-    PORTD->PCR[LEFT_BACKWARD] &= ~PORT_PCR_MUX_MASK;
-    PORTD->PCR[LEFT_BACKWARD] |= PORT_PCR_MUX(4);
-    PORTD->PCR[LEFT_FORWARD] &= ~PORT_PCR_MUX_MASK;
-    PORTD->PCR[LEFT_FORWARD] |= PORT_PCR_MUX(4);
- 
-    //right
-    PORTD->PCR[RIGHT_BACKWARD] &= ~PORT_PCR_MUX_MASK;
-    PORTD->PCR[RIGHT_BACKWARD] |= PORT_PCR_MUX(4);
-    PORTD->PCR[RIGHT_FORWARD] &= ~PORT_PCR_MUX_MASK;
-    PORTD->PCR[RIGHT_FORWARD] |= PORT_PCR_MUX(4);
-
     SIM_SCGC6 |= SIM_SCGC6_TPM0_MASK;
- 
-    TPM0->SC &= ~((TPM_SC_CMOD_MASK) | (TPM_SC_PS_MASK));
-		
-		SIM->SOPT2 &= ~SIM_SOPT2_TPMSRC_MASK;
-    SIM->SOPT2 |= SIM_SOPT2_TPMSRC(1);
-	  
-    TPM0->MOD = 6000; //7500 50Hz
-    
-	  TPM0->SC |= (TPM_SC_CMOD(1) | TPM_SC_PS(7));
-	  TPM0->SC &= ~(TPM_SC_CPWMS_MASK);
-    
-    TPM0_C0SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
-    TPM0_C1SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
-    TPM0_C2SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
-    TPM0_C3SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
-    
-    TPM0_C0SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
-    TPM0_C1SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
-    TPM0_C2SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
-    TPM0_C3SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
- 
-    TPM0_C0V = 0; // LEFT_FORWARD_CV
-    TPM0_C1V = 0; // LEFT_BACKWARD_CV
-    TPM0_C2V = 0; // RIGHT_FORWARD_CV
-    TPM0_C3V = 0; // RIGHT_BACKWARD_CV
 
+    // Configure pins for TPM0 CH0–CH3
+    PORTD->PCR[LEFT_FORWARD]   = PORT_PCR_MUX(4);
+    PORTD->PCR[LEFT_BACKWARD]  = PORT_PCR_MUX(4);
+    PORTD->PCR[RIGHT_FORWARD]  = PORT_PCR_MUX(4);
+    PORTD->PCR[RIGHT_BACKWARD] = PORT_PCR_MUX(4);
+
+    // Select TPM clock source
+    SIM->SOPT2 = (SIM->SOPT2 & ~SIM_SOPT2_TPMSRC_MASK) | SIM_SOPT2_TPMSRC(1);
+
+    // Set PWM frequency (MOD) and start counter
+    TPM0->MOD = 6000;  // period
+    TPM0->SC  = TPM_SC_CMOD(1) | TPM_SC_PS(7);
+
+    // Configure each channel for edge‑aligned PWM, high‑true pulses
+    for (int ch = 0; ch < 4; ch++) {
+        TPM0->CONTROLS[ch].CnSC = TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1);
+        TPM0->CONTROLS[ch].CnV  = 0;  // start at 0% duty
+    }
 }
 
+// Map movementControlMessage into left/right wheel PWM and direction
 void movement_master_control(struct movementControlMessage msg) {
-    // Define a neutral zone threshold
-    const float NEUTRAL_THRESHOLD = 0.1;
+    const float NEUTRAL_THRESHOLD = 0.1f;
+    // Use tighter steering sensitivity when not moving forward/back
+    float steering_sens = (msg.forwardLevel == 0 && msg.backwardLevel == 0) ? 0.4f : 0.8f;
 
-    // Define a scaling factor for steering sensitivity (lower = less sensitive)
-    float STEERING_SENSITIVITY = 0.8; // Adjust this value (e.g., 0.5 = 50% sensitivity)
+    // Normalize levels to –1.0 … +1.0
+    float lin = (msg.forwardLevel  - msg.backwardLevel) / 7.0f;
+    float ang = (msg.leftLevel     - msg.rightLevel)    / 7.0f;
 
-    // Normalize input levels to range -1.0 to 1.0
-    float linearSpeed = (msg.forwardLevel - msg.backwardLevel) / 7.0;   // Forward/backward motion     
-    float angularSpeed = (msg.leftLevel - msg.rightLevel) / 7.0;        // Left/right turning
+    if (fabsf(lin) < NEUTRAL_THRESHOLD) lin = 0;
+    if (fabsf(ang) < NEUTRAL_THRESHOLD) ang = 0;
+    ang *= steering_sens;
 
-		if (linearSpeed == 0) {
-			STEERING_SENSITIVITY = 0.4; //0.5 used at makers lab on 8 april 
-		}
-	
-    // Apply the neutral zone
-    if (fabs(linearSpeed) < NEUTRAL_THRESHOLD) {
-        linearSpeed = 0.0;
-    }
-    if (fabs(angularSpeed) < NEUTRAL_THRESHOLD) {
-        angularSpeed = 0.0;
-    }
+    float leftN  = lin - ang;
+    float rightN = lin + ang;
 
-    // Reduce steering sensitivity
-    angularSpeed *= STEERING_SENSITIVITY;
+    // Scale normalized speed into PWM compare value
+    int leftV  = (int)(leftN  * MAX_SPEED);
+    int rightV = (int)(rightN * MAX_SPEED);
 
-    // Calculate normalized wheel speeds
-    float leftWheelSpeedNormalized = (linearSpeed - angularSpeed);
-    float rightWheelSpeedNormalized = (linearSpeed + angularSpeed);
-
-    // Scale normalized speeds to motor PWM range
-    int leftWheelSpeed = leftWheelSpeedNormalized * MAX_SPEED;
-    int rightWheelSpeed = rightWheelSpeedNormalized * MAX_SPEED;
-		
-    // Set motor directions and speeds
-    if (leftWheelSpeedNormalized > 0) {
-        // Left wheel forward
-        LEFT_FORWARD_CV = leftWheelSpeed + LEFT_BIAS;
+    // Apply to left motor
+    if (leftN > 0) {
+        LEFT_FORWARD_CV  = leftV + LEFT_BIAS;
         LEFT_BACKWARD_CV = 0;
-    } else if (leftWheelSpeedNormalized < 0) {
-        // Left wheel backward
-        LEFT_FORWARD_CV = 0;
-        LEFT_BACKWARD_CV = -leftWheelSpeed - LEFT_BIAS;
+    } else if (leftN < 0) {
+        LEFT_FORWARD_CV  = 0;
+        LEFT_BACKWARD_CV = -leftV - LEFT_BIAS;
     } else {
-        // Left wheel stop
-        LEFT_FORWARD_CV = 0;
-        LEFT_BACKWARD_CV = 0;
+        LEFT_FORWARD_CV = LEFT_BACKWARD_CV = 0;
     }
 
-    if (rightWheelSpeedNormalized > 0) {
-        // Right wheel forward
-        RIGHT_FORWARD_CV = rightWheelSpeed + RIGHT_BIAS;
+    // Apply to right motor (same idea)
+    if (rightN > 0) {
+        RIGHT_FORWARD_CV  = rightV + RIGHT_BIAS;
         RIGHT_BACKWARD_CV = 0;
-    } else if (rightWheelSpeedNormalized < 0) {
-        // Right wheel backward
-        RIGHT_FORWARD_CV = 0;
-        RIGHT_BACKWARD_CV = -rightWheelSpeed - RIGHT_BIAS;
+    } else if (rightN < 0) {
+        RIGHT_FORWARD_CV  = 0;
+        RIGHT_BACKWARD_CV = -rightV - RIGHT_BIAS;
     } else {
-        // Right wheel stop
-        RIGHT_FORWARD_CV = 0;
-        RIGHT_BACKWARD_CV = 0;
+        RIGHT_FORWARD_CV = RIGHT_BACKWARD_CV = 0;
     }
 }
 
-
-
-
-// Decode function that returns a movementControlMessage
+// Decode a single-byte command into levels and “finish” flag
 struct movementControlMessage decode_motor_control(uint8_t data) {
-    struct movementControlMessage controlMessage;
+    struct movementControlMessage m = {0,0,0,0};
+    int fb = data >> 4;    // upper nibble = forward/backward
+    int lr = data & 0x0F;  // lower nibble = left/right
 
-    // Upper 4 bits (forward/backward)
-    int forwardBackward = (int)(data >> 4);
-    // Lower 4 bits (left/right)
-    int leftRight = (int)(data & 0x0F);
+    if (fb <= 7)       m.backwardLevel = 7 - fb;
+    else if (fb <= 14) m.forwardLevel  = fb - 8;
 
-    // Forward/backward
-    if (forwardBackward <= 7) {
-        // 0000�0111 => backward
-        controlMessage.forwardLevel  = 0;
-        controlMessage.backwardLevel = 7 - forwardBackward;
-    } else if (forwardBackward >= 8 && forwardBackward <= 14) {
-        // 1000�1110 => forward
-        controlMessage.forwardLevel  = forwardBackward - 8;
-        controlMessage.backwardLevel = 0;
-    } else {
-        // 1111 => unused
-        controlMessage.forwardLevel  = 0;
-        controlMessage.backwardLevel = 0;
-    }
+    if (lr <= 7)       m.leftLevel  = 7 - lr;
+    else if (lr <= 14) m.rightLevel = lr - 8;
 
-    // Left/right
-    if (leftRight <= 7) {
-        // 0000�0111 => left
-        controlMessage.leftLevel  = 7 - leftRight;
-        controlMessage.rightLevel = 0;
-    } else if (leftRight >= 8 && leftRight <= 14) {
-        // 1000�1110 => right
-        controlMessage.rightLevel = leftRight - 8;
-        controlMessage.leftLevel  = 0;
-    } else {
-        // 1111 => unused
-        controlMessage.leftLevel  = 0;
-        controlMessage.rightLevel = 0;
-    }
-		
-		if (forwardBackward == 15) {
-			controlMessage.finish = true;
-		}
-		else {
-			controlMessage.finish = false;
-		}
-
-    return controlMessage;
+    m.finish = (fb == 15);
+    return m;
 }

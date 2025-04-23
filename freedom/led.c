@@ -1,130 +1,98 @@
-
-
-/*----------------------------------------------------------------------------
- * CMSIS-RTOS 'main' function template
- *---------------------------------------------------------------------------*/
- 
- 
-/*----------------------------------------------------------------------------
- * Application main thread
- *---------------------------------------------------------------------------*/
-
+// led.c
+// Initializes GPIO pins for red/green LEDs and implements RTOS threads
 
 #include "led.h"
+#include "cmsis_os2.h"
+#include "MKL25Z4.h"
 
+extern osMessageQueueId_t red_led_message_queue;
+extern osMessageQueueId_t green_led_message_queue;
+
+// Arrays of pin numbers
+static const int redPinsA[]  = { RED_PIN1, RED_PIN2, RED_PIN4, RED_PIN5, RED_PIN6 };
+static const int redPinsC[]  = { RED_PIN7, RED_PIN8 };
+static const int greenPins[] = {
+    GREEN_PIN1, GREEN_PIN2, GREEN_PIN3, GREEN_PIN4,
+    GREEN_PIN5, GREEN_PIN6, GREEN_PIN7, GREEN_PIN8
+};
+
+// Masks for fast on/off
+#define RED_PORTA_MASK  (MASK(RED_PIN1) | MASK(RED_PIN2) | MASK(RED_PIN4) | MASK(RED_PIN5) | MASK(RED_PIN6))
+#define RED_PORTC_MASK  (MASK(RED_PIN7) | MASK(RED_PIN8))
+#define ALL_GREEN_MASK  (MASK(GREEN_PIN1) | MASK(GREEN_PIN2) | MASK(GREEN_PIN3) | MASK(GREEN_PIN4) | \
+                         MASK(GREEN_PIN5) | MASK(GREEN_PIN6) | MASK(GREEN_PIN7) | MASK(GREEN_PIN8))
+
+// Configure LED pins as GPIO outputs, start OFF
 void initLED(void) {
-	int PORTAPins[] = {RED_PIN1, RED_PIN2, RED_PIN4, RED_PIN5, RED_PIN6};
-	int PORTCPins[] = {RED_PIN7, RED_PIN8, GREEN_PIN1, GREEN_PIN2, GREEN_PIN3, GREEN_PIN4, GREEN_PIN5, GREEN_PIN6, GREEN_PIN7, GREEN_PIN8};
-	int PORTDPin = RED_PIN3;
-	
-	SIM->SCGC5 = SIM_SCGC5_PORTA_MASK | SIM_SCGC5_PORTC_MASK | SIM_SCGC5_PORTD_MASK;
+    // Enable clocks for ports A, C, D
+    SIM->SCGC5 |= SIM_SCGC5_PORTA_MASK | SIM_SCGC5_PORTC_MASK | SIM_SCGC5_PORTD_MASK;
 
-	for (int i = 0; i < sizeof(PORTAPins) / sizeof(PORTAPins[0]); i++) {
-		int pin = PORTAPins[i];
-		PORTA->PCR[pin] &= ~PORT_PCR_MUX_MASK;
-		PORTA->PCR[pin] |= PORT_PCR_MUX(1);
-		PTA->PDDR |= MASK(pin);
-		PTA->PCOR |= MASK(pin);
-	}
-	
-	for (int i = 0; i < sizeof(PORTCPins) / sizeof(PORTCPins[0]); i++) {
-		int pin = PORTCPins[i];
-		PORTC->PCR[pin] &= ~PORT_PCR_MUX_MASK;
-		PORTC->PCR[pin] |= PORT_PCR_MUX(1);
-		PTC->PDDR |= MASK(pin);
-		PTC->PCOR |= MASK(pin);
-	}
-	
-	PORTD->PCR[PORTDPin] &= ~PORT_PCR_MUX_MASK;
-	PORTD->PCR[PORTDPin] |= PORT_PCR_MUX(1);
-	PTD->PDDR |= MASK(PORTDPin);
-	PTD->PCOR |= MASK(PORTDPin);
+    // RED LEDs on PORTA
+    for (size_t i = 0; i < sizeof(redPinsA)/sizeof(redPinsA[0]); i++) {
+        int p = redPinsA[i];
+        PORTA->PCR[p] = PORT_PCR_MUX(1);
+        PTA->PDDR     |= MASK(p);
+        PTA->PCOR     |= MASK(p);
+    }
+    // RED LEDs on PORTC
+    for (size_t i = 0; i < sizeof(redPinsC)/sizeof(redPinsC[0]); i++) {
+        int p = redPinsC[i];
+        PORTC->PCR[p] = PORT_PCR_MUX(1);
+        PTC->PDDR     |= MASK(p);
+        PTC->PCOR     |= MASK(p);
+    }
+    // RED LED on PTD
+    PORTD->PCR[RED_PIN3] = PORT_PCR_MUX(1);
+    PTD->PDDR          |= MASK(RED_PIN3);
+    PTD->PCOR          |= MASK(RED_PIN3);
+
+    // GREEN LEDs on PORTC
+    for (size_t i = 0; i < sizeof(greenPins)/sizeof(greenPins[0]); i++) {
+        int p = greenPins[i];
+        PORTC->PCR[p] = PORT_PCR_MUX(1);
+        PTC->PDDR     |= MASK(p);
+        PTC->PCOR     |= MASK(p);
+    }
 }
 
-int parse_robot_status(void) {
-	return 1;
-}
-
-void red_led_thread (void *argument) {
+// Red LED thread: blinks at 500ms if running, 250ms otherwise
+void red_led_thread(void *argument) {
     for (;;) {
-		int isRunning;
-		osMessageQueueGet(red_led_message_queue, &isRunning, NULL, osWaitForever);
-		int delayTiming = isRunning ? 500 : 250;
+        int isRunning = 0;
+        osMessageQueueGet(red_led_message_queue, &isRunning, NULL, osWaitForever);
 
-        //switch on led
-        uint32_t PORTAState = MASK(RED_PIN1) | MASK(RED_PIN2) | MASK(RED_PIN4) | MASK(RED_PIN5) | MASK(RED_PIN6);
-		uint32_t PORTCState = MASK(RED_PIN7) | MASK(RED_PIN8);
-		PTA->PSOR = PORTAState;
-		PTC->PSOR = PORTCState;
-		PTD->PSOR = MASK(RED_PIN3);
-        osDelay(delayTiming);
-		osMessageQueueGet(red_led_message_queue, &isRunning, NULL, osWaitForever);
-		delayTiming = isRunning ? 500 : 250;
-        //switch off led
-        PTA->PCOR = PORTAState;
-		PTC->PCOR = PORTCState;
-		PTD->PCOR = MASK(RED_PIN3);
-		osDelay(delayTiming);
-	}
+        // Turn on
+        PTA->PSOR = RED_PORTA_MASK;
+        PTC->PSOR = RED_PORTC_MASK;
+        PTD->PSOR = MASK(RED_PIN3);
+        osDelay(isRunning ? 500 : 250);
+
+        // Turn off
+        PTA->PCOR = RED_PORTA_MASK;
+        PTC->PCOR = RED_PORTC_MASK;
+        PTD->PCOR = MASK(RED_PIN3);
+        osDelay(isRunning ? 500 : 250);
+    }
 }
 
-
-void green_led_thread (void *argument) {
-	int green_led_array[] = {GREEN_PIN1, GREEN_PIN2, GREEN_PIN3, GREEN_PIN4, GREEN_PIN5, GREEN_PIN6, GREEN_PIN7, GREEN_PIN8};
-	int green_led_index = 0;
-	int green_led_count = 8;
-	for (;;) {
-        int isRunning;
+// Green LED thread: rotating effect when running, solid on otherwise
+void green_led_thread(void *argument) {
+    size_t idx = 0;
+    const size_t count = sizeof(greenPins)/sizeof(greenPins[0]);
+    for (;;) {
+        int isRunning = 0;
         osMessageQueueGet(green_led_message_queue, &isRunning, NULL, osWaitForever);
-		
-		// Define the array of green LED pins and an index
 
-		if (isRunning) {
-			// Running Mode: off all LEDs except the current one
-			// Turn off all LEDs
-			PTC->PCOR = MASK(GREEN_PIN1) | MASK(GREEN_PIN2) | MASK(GREEN_PIN3) |
-								MASK(GREEN_PIN4) | MASK(GREEN_PIN5) | MASK(GREEN_PIN6) |
-								MASK(GREEN_PIN7) | MASK(GREEN_PIN8);
-			
-			// Turn on the current LED
-			uint32_t state = MASK(green_led_array[green_led_index]);
-			PTC->PSOR = state;
-
-			// Increment the index and wrap around
-			green_led_index = (green_led_index + 1) % green_led_count;
-
-			osDelay(50); // Add a delay for visibility
-		} else {
-            // Static Mode: Turn on all LEDs
-            uint32_t state = MASK(GREEN_PIN1) | MASK(GREEN_PIN2) | MASK(GREEN_PIN3) |
-                             MASK(GREEN_PIN4) | MASK(GREEN_PIN5) | MASK(GREEN_PIN6) |
-                             MASK(GREEN_PIN7) | MASK(GREEN_PIN8);
-            PTC->PSOR = state;
+        if (isRunning) {
+            // Turn all off, then one on
+            PTC->PCOR = ALL_GREEN_MASK;
+            PTC->PSOR = MASK(greenPins[idx]);
+            idx = (idx + 1) % count;
+            osDelay(50);
+        } else {
+            // Solid on
+            PTC->PSOR = ALL_GREEN_MASK;
         }
     }
 }
 
-void control_thread (void *argument) {
-  for (;;) {	
-	    int isRunning = 1;
-		osMessageQueuePut(red_led_message_queue, &isRunning, NULL, 0);
-		osMessageQueuePut(green_led_message_queue, &isRunning, NULL, 0);
-	}
-}
- 
-// int main (void) {
- 
-// 	initLED();
-//     // System Initialization
-//     SystemCoreClockUpdate();
-//     // ...
- 
-//     osKernelInitialize();                 // Initialize CMSIS-RTOS    
-// 	red_led_message_queue = osMessageQueueNew(1, sizeof(int), NULL);
-// 	green_led_message_queue = osMessageQueueNew(1, sizeof(int), NULL);
-// 	osThreadNew(control_thread, NULL, NULL);
-// 	osThreadNew(green_led_thread, NULL, NULL);
-// 	osThreadNew(red_led_thread, NULL, NULL);
-//     osKernelStart();                      // Start thread execution
-//     for (;;) {}
-// }
