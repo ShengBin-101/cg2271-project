@@ -30,26 +30,30 @@ void initLED(void) {
     // RED LEDs on PORTA
     for (size_t i = 0; i < sizeof(redPinsA)/sizeof(redPinsA[0]); i++) {
         int p = redPinsA[i];
-        PORTA->PCR[p] = PORT_PCR_MUX(1);
+				PORTA->PCR[p] &= ~PORT_PCR_MUX_MASK;
+        PORTA->PCR[p] |= PORT_PCR_MUX(1);
         PTA->PDDR     |= MASK(p);
         PTA->PCOR     |= MASK(p);
     }
     // RED LEDs on PORTC
     for (size_t i = 0; i < sizeof(redPinsC)/sizeof(redPinsC[0]); i++) {
         int p = redPinsC[i];
-        PORTC->PCR[p] = PORT_PCR_MUX(1);
+				PORTC->PCR[p] &= ~PORT_PCR_MUX_MASK;
+        PORTC->PCR[p] |= PORT_PCR_MUX(1);
         PTC->PDDR     |= MASK(p);
         PTC->PCOR     |= MASK(p);
     }
     // RED LED on PTD
-    PORTD->PCR[RED_PIN3] = PORT_PCR_MUX(1);
+		PORTD->PCR[RED_PIN3] &= ~PORT_PCR_MUX_MASK;
+    PORTD->PCR[RED_PIN3] |= PORT_PCR_MUX(1);
     PTD->PDDR          |= MASK(RED_PIN3);
     PTD->PCOR          |= MASK(RED_PIN3);
 
     // GREEN LEDs on PORTC
     for (size_t i = 0; i < sizeof(greenPins)/sizeof(greenPins[0]); i++) {
         int p = greenPins[i];
-        PORTC->PCR[p] = PORT_PCR_MUX(1);
+				PORTC->PCR[p] &= ~PORT_PCR_MUX_MASK;
+        PORTC->PCR[p] |= PORT_PCR_MUX(1);
         PTC->PDDR     |= MASK(p);
         PTC->PCOR     |= MASK(p);
     }

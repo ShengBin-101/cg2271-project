@@ -19,21 +19,31 @@ void initMotorPWM(void) {
     SIM_SCGC6 |= SIM_SCGC6_TPM0_MASK;
 
     // Configure pins for TPM0 CH0–CH3
-    PORTD->PCR[LEFT_FORWARD]   = PORT_PCR_MUX(4);
-    PORTD->PCR[LEFT_BACKWARD]  = PORT_PCR_MUX(4);
-    PORTD->PCR[RIGHT_FORWARD]  = PORT_PCR_MUX(4);
-    PORTD->PCR[RIGHT_BACKWARD] = PORT_PCR_MUX(4);
+		PORTD->PCR[LEFT_FORWARD] &= ~PORT_PCR_MUX_MASK;
+    PORTD->PCR[LEFT_FORWARD] |= PORT_PCR_MUX(4);
+	
+		PORTD->PCR[LEFT_BACKWARD] &= ~PORT_PCR_MUX_MASK;
+    PORTD->PCR[LEFT_BACKWARD] |= PORT_PCR_MUX(4);
+	
+		PORTD->PCR[RIGHT_FORWARD] &= ~PORT_PCR_MUX_MASK;
+    PORTD->PCR[RIGHT_FORWARD] |= PORT_PCR_MUX(4);
+	
+		PORTD->PCR[RIGHT_BACKWARD] &= ~PORT_PCR_MUX_MASK;
+    PORTD->PCR[RIGHT_BACKWARD] |= PORT_PCR_MUX(4);
 
     // Select TPM clock source
-    SIM->SOPT2 = (SIM->SOPT2 & ~SIM_SOPT2_TPMSRC_MASK) | SIM_SOPT2_TPMSRC(1);
-
+ 		SIM->SOPT2 &= ~SIM_SOPT2_TPMSRC_MASK;
+    SIM->SOPT2 |= SIM_SOPT2_TPMSRC(1);
+	
     // Set PWM frequency (MOD) and start counter
     TPM0->MOD = 6000;  // period
-    TPM0->SC  = TPM_SC_CMOD(1) | TPM_SC_PS(7);
+    TPM0->SC |= TPM_SC_CMOD(1) | TPM_SC_PS(7);
+		TPM0->SC &= ~(TPM_SC_CPWMS_MASK);
 
     // Configure each channel for edge‑aligned PWM, high‑true pulses
     for (int ch = 0; ch < 4; ch++) {
-        TPM0->CONTROLS[ch].CnSC = TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1);
+				TPM0->CONTROLS[ch].CnSC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) | (TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
+        TPM0->CONTROLS[ch].CnSC |= TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1);
         TPM0->CONTROLS[ch].CnV  = 0;  // start at 0% duty
     }
 }

@@ -1,8 +1,5 @@
 #include "buzzer.h"
 
-// Thread flag variable
-static uint32_t playingFlag = 0;
-
 const note_with_duration_t melody1[] = {
   {Bb6, FULL}, {Ab6, FULL}, {Gb6, FULL}, {F6, FULL},
   {REST, HALF}, {F6, FULL}, {F6, FULL}, {F6, FULL}, {Eb6, FULL}, {REST, HALF},
@@ -19,100 +16,125 @@ const note_with_duration_t melody2[] = {
 };
 
 
-// Initialize TPM1 channel 0 for edge-aligned PWM
 void initBuzzerPWM(void) {
-    // Enable clock for PORTB
-    SIM->SCGC5 |= SIM_SCGC5_PORTB_MASK;
-    // Mux BUZZER_PIN to TPM1_CH0
-    PORTB->PCR[BUZZER_PIN] = PORT_PCR_MUX(3);
+	// Enable clk to PORTB
+	SIM_SCGC5 |= SIM_SCGC5_PORTB_MASK;
 
-    // Enable TPM1 clock, select MCGFLLCLK
-    SIM->SCGC6 |= SIM_SCGC6_TPM1_MASK;
-    SIM->SOPT2  = (SIM->SOPT2 & ~SIM_SOPT2_TPMSRC_MASK) | SIM_SOPT2_TPMSRC(1);
-
-    // Edge-aligned PWM, prescaler=128
-    TPM1->SC  = TPM_SC_CMOD(1) | TPM_SC_PS(7);
-    TPM1_C0SC = TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1);
+	// Set pins 0 and 1 to be connected to the TPM module
+	PORTB->PCR[BUZZER_PIN] &= ~PORT_PCR_MUX_MASK; // clear current MUX
+	PORTB->PCR[BUZZER_PIN] |= PORT_PCR_MUX(3); // config MUX to 3 (timer/PWM)
+	
+	// (pg 208) Powers on (enable clock for) TPM1 module
+	// TPM = Timer or PWM module
+	SIM->SCGC6 |= SIM_SCGC6_TPM1_MASK;
+	
+	// (pg 195) Reset current state of the mask
+	// TPMSRC = TPM source
+	SIM->SOPT2 &= ~SIM_SOPT2_TPMSRC_MASK;
+	// Configures TPM to use MCG FLL clock (pg 367)
+	// MCG = Main Clock Generator
+	// PLL = Phase Locked Loop
+	SIM->SOPT2 |= SIM_SOPT2_TPMSRC(1);
+	
+	// (pg 553) Reset clock mode and prescaler
+	TPM1->SC &= ~((TPM_SC_CMOD_MASK) | (TPM_SC_PS_MASK));
+	// set clock mode to increment on internal clock
+	// prescaler = 128 aka 2^7
+	TPM1->SC |= (TPM_SC_CMOD(1) | TPM_SC_PS(7));
+	// (pg 553) Set to 0 --> Up counting mode --> Edge aligned PWM
+	TPM1->SC &= ~(TPM_SC_CPWMS_MASK);
+	
+	// (pg 556) Reset old masks
+	TPM1_C0SC &= ~((TPM_CnSC_ELSB_MASK) | (TPM_CnSC_ELSA_MASK) |
+		(TPM_CnSC_MSB_MASK) | (TPM_CnSC_MSA_MASK));
+	// Set edge aligned PWM, high true pulses	
+	TPM1_C0SC |= (TPM_CnSC_ELSB(1) | TPM_CnSC_MSB(1));
 }
 
-// Convert frequency (Hz) to TPM1->MOD register value
-static int frequency_to_MOD(int freq) {
+int frequency_to_MOD(int freq) {
+	// freq = fTPM / (MOD + 1) = (48MHz / PS) / (MOD + 1)
+	// MOD = 48MHz / (PS * freq) - 1
     return (int)((48000000.0 / (128.0 * freq)) - 1);
 }
 
-// Map note to frequency in Hz
-static int note_to_frequency(enum note_t note) {
-    switch (note) {
-        case C4:  return 261;
-        case Db4: return 277;
-        case D4:  return 293;
-        case Eb4: return 311;
-        case E4:  return 329;
-        case F4:  return 349;
-        case Gb4: return 370;
-        case G4:  return 392;
-        case Ab4: return 415;
-        case A4:  return 440;
-        case Bb4: return 466;
-        case B4:  return 493;
-        case C5:  return 523;
-        case Db5: return 554;
-        case D5:  return 587;
-        case Eb5: return 622;
-        case E5:  return 659;
-        case F5:  return 698;
-        case Gb5: return 740;
-        case G5:  return 784;
-        case Ab5: return 831;
-        case A5:  return 880;
-        case Bb5: return 932;
-        case B5:  return 987;
-        case C6:  return 1046;
-        case Db6: return 1108;
-        case D6:  return 1174;
-        case Eb6: return 1244;
-        case E6:  return 1318;
-        case F6:  return 1396;
-        case Gb6: return 1480;
-        case G6:  return 1568;
-        case Ab6: return 1661;
-        case A6:  return 1760;
-        case Bb6: return 1864;
-        case B6:  return 1975;
-        case REST: return 0;
-    }
-    return 0;
-}
-
-// Play one note by setting MOD and C0V
 void play_note(enum note_t note) {
-    int f   = note_to_frequency(note);
-    int mod = frequency_to_MOD(f);
-    TPM1->MOD  = mod;
-    TPM1_C0V   = (uint16_t)(mod * VOLUME);
+  int frequency = 0;
+  switch (note) {
+    case C4: frequency = 261; break;
+    case Db4: frequency = 277; break;
+    case D4: frequency = 293; break;
+    case Eb4: frequency = 311; break;
+    case E4: frequency = 329; break;
+    case F4: frequency = 349; break;
+    case Gb4: frequency = 370; break;
+    case G4: frequency = 392; break;
+    case Ab4: frequency = 415; break;
+    case A4: frequency = 440; break;
+    case Bb4: frequency = 466; break;
+    case B4: frequency = 493; break;
+    
+    case C5: frequency = 523; break;
+    case Db5: frequency = 554; break;
+    case D5: frequency = 587; break;
+    case Eb5: frequency = 622; break;
+    case E5: frequency = 659; break;
+    case F5: frequency = 698; break;
+    case Gb5: frequency = 740; break;
+    case G5: frequency = 784; break;
+    case Ab5: frequency = 831; break;
+    case A5: frequency = 880; break;
+    case Bb5: frequency = 932; break;
+    case B5: frequency = 987; break;
+    
+    case C6: frequency = 1046; break;
+    case Db6: frequency = 1108; break;
+    case D6: frequency = 1174; break;
+    case Eb6: frequency = 1244; break;
+    case E6: frequency = 1318; break;
+    case F6: frequency = 1396; break;
+    case Gb6: frequency = 1480; break;
+    case G6: frequency = 1568; break;
+    case Ab6: frequency = 1661; break;
+    case A6: frequency = 1760; break;
+    case Bb6: frequency = 1864; break;
+    case B6: frequency = 1975; break;
+
+    case REST: frequency = 0; break;
+  }
+
+  TPM1->MOD = frequency_to_MOD(frequency);
+  TPM1_C0V = frequency_to_MOD(frequency) * VOLUME;
 }
 
-// Play through a melody; abort if thread flags change
+
+
+uint32_t flags = 0; // Initialize flags variable
+
 void play_tune(const note_with_duration_t *melody, int length) {
-    for (int i = 0; i < length; i++) {
-        if (osThreadFlagsGet() != playingFlag) break;
-        play_note(melody[i].note);
-        osDelay(melody[i].duration);
-        TPM1->MOD = 0;    // silence
+  
+	for (int i = 0; i < length; i++) {
+				if (osThreadFlagsGet() != flags) break;
+			  play_note(melody[i].note);
+        osDelay(melody[i].duration); // Use the note-specific duration
+        TPM1->MOD = 0;      // Silence between notes
         osDelay(PAUSE_T);
-    }
+    
+			
+   }
 }
 
-// Audio thread: waits for 0x0001 or 0x0002, then plays melody1 or melody2
+
+
 void tAudio(void *argument) {
-    for (;;) {
-        playingFlag = osThreadFlagsWait(0x0001 | 0x0002,
-                                        osFlagsWaitAny, osWaitForever);
-        if (playingFlag == 0x0001) {
-            play_tune(melody1, sizeof(melody1)/sizeof(*melody1));
-        } else {
-            play_tune(melody2, sizeof(melody2)/sizeof(*melody2));
-        }
-        osDelay(END_T);
-    }
+    
+	for (;;){
+				// Wait for the thread flag to be set
+		flags = osThreadFlagsWait(0x0001 | 0x0002, osFlagsWaitAny, osWaitForever);
+		// Play the appropriate tune based on the value of endRun
+		if (flags == 0x0001) {
+			play_tune(melody1, sizeof(melody1) / sizeof(melody1[0])); // Play Tune 1
+		} else {
+			play_tune(melody2, sizeof(melody2) / sizeof(melody2[0])); // Play Tune 2
+		}
+	}
 }

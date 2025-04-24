@@ -41,6 +41,7 @@ void initUART2(uint32_t baud) {
     SIM->SCGC4 |= SIM_SCGC4_UART2_MASK;
     SIM->SCGC5 |= SIM_SCGC5_PORTE_MASK;
     // Route PTE23 ? UART2_RX
+		PORTE->PCR[UART_RX_PORTE23] &= ~PORT_PCR_MUX_MASK;
     PORTE->PCR[UART_RX_PORTE23] = PORT_PCR_MUX(4);
 
     // Disable UART while configuring
