@@ -19,6 +19,9 @@ osThreadId_t       play_buzzer_Id;
 volatile bool endRun = false;  // Signals when “finish” command received
 int           isRunning = 0;   // Indicates robot is moving
 
+// Motor commands
+struct movementControlMessage cmd;
+
 // Simple busy-wait delay (just for tiny timing tweaks)
 static void delay(volatile uint32_t count) {
     while (count--) {
@@ -39,9 +42,31 @@ void tMotor(void *arg) {
 // Brain thread: updates LED threads with current running state
 void tBrain(void *arg) {
     for (;;) {
+				
         osMessageQueuePut(red_led_message_queue, &isRunning, 0, 0);
         osMessageQueuePut(green_led_message_queue, &isRunning, 0, 0);
-        osDelay(10);  // small pause to avoid flooding
+				if(endRun){
+            // Once finished, play alternate buzzer tune
+            osThreadFlagsSet(play_buzzer_Id, 0x0002);
+						osThreadFlagsSet(play_buzzer_Id, 0x0002);
+        } else {
+						// Notify buzzer that we have fresh data
+            osThreadFlagsSet(play_buzzer_Id, 0x0001);
+						osThreadFlagsSet(play_buzzer_Id, 0x0001);
+				}
+				
+				// Determine running state
+				isRunning = (cmd.forwardLevel || cmd.backwardLevel || cmd.leftLevel || cmd.rightLevel);
+
+				if (cmd.finish) {
+						// Received “finish” command: stop motors, flag end of run
+						endRun = true;
+						cmd = idle;
+						movement_master_control(idle);
+				} else {
+						// Send to motor thread
+						osMessageQueuePut(motorCommandQueue, &cmd, 0, 0);
+				}
     }
 }
 
@@ -51,30 +76,13 @@ void tUART(void *arg) {
         if (!endRun) {
             // Block until at least one byte arrives
             osSemaphoreAcquire(sem_uartRx, osWaitForever);
-            // Notify buzzer that we have fresh data
-            osThreadFlagsSet(play_buzzer_Id, 0x0001);
 
             // Drain the receive queue
             while (!Q_Empty(&rx_q)) {
                 uint8_t data = Q_Dequeue(&rx_q);
-                struct movementControlMessage cmd = decode_motor_control(data);
-
-                // Determine running state
-                isRunning = (cmd.forwardLevel || cmd.backwardLevel || cmd.leftLevel || cmd.rightLevel);
-
-                if (cmd.finish) {
-                    // Received “finish” command: stop motors, flag end of run
-                    endRun = true;
-                    movement_master_control(idle);
-                } else {
-                    // Send to motor thread
-                    osMessageQueuePut(motorCommandQueue, &cmd, 0, 0);
-                }
+                cmd = decode_motor_control(data);
             }
-        } else {
-            // Once finished, play alternate buzzer tune
-            osThreadFlagsSet(play_buzzer_Id, 0x0002);
-        }
+        } 
     }
 }
 
@@ -119,9 +127,9 @@ int main(void) {
     motorCommandQueue       = osMessageQueueNew(8, sizeof(struct movementControlMessage), NULL);
 
     // 4) Create threads
+	   osThreadNew(tBrain,           NULL, NULL);
     osThreadNew(tUART,            NULL, NULL);
     osThreadNew(tMotor,           NULL, NULL);
-    osThreadNew(tBrain,           NULL, NULL);
     osThreadNew(green_led_thread, NULL, NULL);
     osThreadNew(red_led_thread,   NULL, NULL);
     play_buzzer_Id = osThreadNew(tAudio, NULL, NULL);
